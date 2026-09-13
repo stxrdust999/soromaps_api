@@ -18,7 +18,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(
         "AllowFrontend",
-        policy => policy.WithOrigins("http://localhost:3000").AllowAnyMethod().AllowAnyHeader()
+        policy =>
+        {
+            if (builder.Environment.IsDevelopment())
+            {
+                // Dev: libera qualquer origin pra testar via IP da LAN (celular no WiFi)
+                policy.SetIsOriginAllowed(_ => true).AllowAnyMethod().AllowAnyHeader();
+            }
+            else
+            {
+                policy.WithOrigins("http://localhost:3000").AllowAnyMethod().AllowAnyHeader();
+            }
+        }
     );
 });
 
