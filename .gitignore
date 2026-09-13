@@ -1,0 +1,43 @@
+# ------------------------------------------------------------------
+# Build
+# ------------------------------------------------------------------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Bb]uild/
+[Pp]ublish/
+*.dll
+*.exe
+*.pdb
+
+# ------------------------------------------------------------------
+# Segredos e configuração local
+#
+# appsettings.json é versionado com ConnectionStrings vazio; o valor real
+# vive nas Application Settings do Azure App Service e, localmente, no
+# appsettings.Development.json (ignorado abaixo).
+# ------------------------------------------------------------------
+appsettings.Development.json
+appsettings.Local.json
+*.env
+.env*
+!.env.example
+secrets.json
+
+# ------------------------------------------------------------------
+# Visual Studio / Rider / VS Code
+# ------------------------------------------------------------------
+.vs/
+.vscode/
+.idea/
+task-logs/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+*.csproj.user
