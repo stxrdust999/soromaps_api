@@ -1,0 +1,587 @@
+{
+  "version": "3.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "currentViewName": null,
+  "defaultView": {
+    "detailLevel": "All",
+    "relationshipMode": "All",
+    "tablePositions": [
+      {
+        "name": "usuario",
+        "schemaName": "public",
+        "x": 12,
+        "y": 552
+      },
+      {
+        "name": "categoria",
+        "schemaName": "public",
+        "x": 12,
+        "y": 186
+      },
+      {
+        "name": "ponto",
+        "schemaName": "public",
+        "x": 581.49365234375,
+        "y": 95
+      },
+      {
+        "name": "ponto_foto",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 53
+      },
+      {
+        "name": "tag",
+        "schemaName": "public",
+        "x": 12,
+        "y": 12
+      },
+      {
+        "name": "ponto_tag",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 323
+      },
+      {
+        "name": "analise",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 465
+      },
+      {
+        "name": "analise_util",
+        "schemaName": "public",
+        "x": 1816.48095703125,
+        "y": 12
+      },
+      {
+        "name": "comentario",
+        "schemaName": "public",
+        "x": 1816.48095703125,
+        "y": 206
+      },
+      {
+        "name": "visita",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 831
+      },
+      {
+        "name": "favorita",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 1037
+      },
+      {
+        "name": "feed_silenciado",
+        "schemaName": "public",
+        "x": 581.49365234375,
+        "y": 686
+      },
+      {
+        "name": "conquista",
+        "schemaName": "public",
+        "x": 12,
+        "y": 950
+      },
+      {
+        "name": "ganha_conquista",
+        "schemaName": "public",
+        "x": 581.49365234375,
+        "y": 2184
+      },
+      {
+        "name": "decisao_moderacao",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 1211
+      },
+      {
+        "name": "denuncia",
+        "schemaName": "public",
+        "x": 581.49365234375,
+        "y": 893
+      },
+      {
+        "name": "remocao_conteudo",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 1513
+      },
+      {
+        "name": "feedback",
+        "schemaName": "public",
+        "x": 581.49365234375,
+        "y": 1259
+      },
+      {
+        "name": "pauta",
+        "schemaName": "public",
+        "x": 581.49365234375,
+        "y": 1625
+      },
+      {
+        "name": "pauta_ponto",
+        "schemaName": "public",
+        "x": 1238.9873046875,
+        "y": 1815
+      }
+    ],
+    "tableGroupCollapseStates": [],
+    "stickyNoteLayouts": [],
+    "referencePaths": [
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "categoria",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "categoria_id"
+        ],
+        "secondTableName": "ponto",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "autor_id"
+        ],
+        "secondTableName": "ponto",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ponto",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ponto_id"
+        ],
+        "secondTableName": "ponto_foto",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "enviada_por"
+        ],
+        "secondTableName": "ponto_foto",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ponto",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ponto_id"
+        ],
+        "secondTableName": "ponto_tag",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "tag",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "tag_id"
+        ],
+        "secondTableName": "ponto_tag",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ponto",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ponto_id"
+        ],
+        "secondTableName": "analise",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "analise",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "analise",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "analise_id"
+        ],
+        "secondTableName": "analise_util",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "analise_util",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "analise",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "analise_id"
+        ],
+        "secondTableName": "comentario",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "comentario",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "comentario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "resposta_a_id"
+        ],
+        "secondTableName": "comentario",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "visita",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ponto",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ponto_id"
+        ],
+        "secondTableName": "visita",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "favorita",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ponto",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ponto_id"
+        ],
+        "secondTableName": "favorita",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "feed_silenciado",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "ganha_conquista",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "conquista",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "conquista_id"
+        ],
+        "secondTableName": "ganha_conquista",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ponto",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ponto_id"
+        ],
+        "secondTableName": "decisao_moderacao",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "moderador_id"
+        ],
+        "secondTableName": "decisao_moderacao",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "denunciante_id"
+        ],
+        "secondTableName": "denuncia",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "resolvido_por"
+        ],
+        "secondTableName": "denuncia",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "moderador_id"
+        ],
+        "secondTableName": "remocao_conteudo",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "denuncia",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "denuncia_id"
+        ],
+        "secondTableName": "remocao_conteudo",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "usuario_id"
+        ],
+        "secondTableName": "feedback",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "usuario",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "revisado_por"
+        ],
+        "secondTableName": "pauta",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "pauta",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "pauta_id"
+        ],
+        "secondTableName": "pauta_ponto",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ponto",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ponto_id"
+        ],
+        "secondTableName": "pauta_ponto",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      }
+    ]
+  },
+  "views": {}
+}
