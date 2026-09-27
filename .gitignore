@@ -1,0 +1,41 @@
+# ------------------------------------------------------------------
+# Build / Compilação .NET
+# ------------------------------------------------------------------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]uild/
+[Pp]ublish/
+*.dll
+*.exe
+*.pdb
+
+# ------------------------------------------------------------------
+# Segredos e Configurações Locais
+#
+# Segredos de desenvolvimento ficam no User Secrets (`dotnet user-secrets`),
+# totalmente fora do repositório. Em produção, utilizam-se Variáveis de Ambiente
+# ou Azure Application Settings.
+# ------------------------------------------------------------------
+appsettings.Development.json
+appsettings.Local.json
+*.env
+.env*
+!.env.example
+secrets.json
+
+# ------------------------------------------------------------------
+# IDEs (Visual Studio, VS Code, JetBrains Rider)
+# ------------------------------------------------------------------
+.vs/
+.vscode/
+.idea/
+task-logs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.csproj.user
