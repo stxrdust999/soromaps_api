@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using soromaps_api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,7 +9,8 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 // Add services to the container.
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention()   
+    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention()
+    .ReplaceService<IMigrationsSqlGenerator, RlsMigrationsSqlGenerator>()
 );
 
 builder.Services.AddProblemDetails();
