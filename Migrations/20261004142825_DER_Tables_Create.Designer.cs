@@ -12,7 +12,7 @@ using soromaps_api.Data;
 namespace soromaps_api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261004140025_DER_Tables_Create")]
+    [Migration("20261004142825_DER_Tables_Create")]
     partial class DER_Tables_Create
     {
         /// <inheritdoc />
@@ -89,6 +89,12 @@ namespace soromaps_api.Migrations
                     b.HasKey("CommentId")
                         .HasName("pk_tb_comments");
 
+                    b.HasIndex("ReviewId")
+                        .HasDatabaseName("ix_tb_comments_review_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_tb_comments_user_id");
+
                     b.ToTable("tb_comments", (string)null);
                 });
 
@@ -158,6 +164,12 @@ namespace soromaps_api.Migrations
                     b.HasKey("PlaceId")
                         .HasName("pk_tb_places");
 
+                    b.HasIndex("AuthorId")
+                        .HasDatabaseName("ix_tb_places_author_id");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_tb_places_category_id");
+
                     b.ToTable("tb_places", (string)null);
                 });
 
@@ -187,6 +199,12 @@ namespace soromaps_api.Migrations
 
                     b.HasKey("ReviewId")
                         .HasName("pk_tb_reviews");
+
+                    b.HasIndex("PlaceId")
+                        .HasDatabaseName("ix_tb_reviews_place_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_tb_reviews_user_id");
 
                     b.ToTable("tb_reviews", (string)null);
                 });
@@ -259,6 +277,69 @@ namespace soromaps_api.Migrations
                         .HasDatabaseName("ix_tb_users_email");
 
                     b.ToTable("tb_users", (string)null);
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Comment", b =>
+                {
+                    b.HasOne("soromaps_api.Models.Review", "Review")
+                        .WithMany()
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_comments_reviews_review_id");
+
+                    b.HasOne("soromaps_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_comments_users_user_id");
+
+                    b.Navigation("Review");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Place", b =>
+                {
+                    b.HasOne("soromaps_api.Models.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_places_users_author_id");
+
+                    b.HasOne("soromaps_api.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_places_tb_categorys_category_id");
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Review", b =>
+                {
+                    b.HasOne("soromaps_api.Models.Place", "Place")
+                        .WithMany()
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_reviews_tb_places_place_id");
+
+                    b.HasOne("soromaps_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_reviews_users_user_id");
+
+                    b.Navigation("Place");
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }
