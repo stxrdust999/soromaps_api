@@ -5,6 +5,7 @@ using soromaps_api.Data;
 using soromaps_api.DTOs.Users;
 using BCrypt.Net;
 using soromaps_api.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace soromaps_api.Controllers
 {
@@ -43,6 +44,7 @@ namespace soromaps_api.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
         [EndpointSummary("Cadastra um novo usuário")]
         [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
