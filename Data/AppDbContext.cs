@@ -7,6 +7,8 @@ namespace soromaps_api.Data
     {
         public DbSet<User> Users => Set<User>();
 
+        public DbSet<Session> Sessions => Set<Session>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
