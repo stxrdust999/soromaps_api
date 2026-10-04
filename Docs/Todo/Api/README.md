@@ -34,7 +34,7 @@ entrega**, e registra no `CLAUDE.md` o que mudou de decisão.
 | # | Fase | Status | Destrava no front | Mock que sai |
 |---|---|---|---|---|
 | 00 | [Fundação](./00-Fundacao.md) | ✅ | Base para tudo: migrations, schemas, seed, config, contrato de erro | — |
-| 01 | [Autenticação](./01-Autenticacao.md) | 💤 | API deixa de ser pública; gate de `/admin` real | — |
+| 01 | [Autenticação](./01-Autenticacao.md) | ✅ | API deixa de ser pública; gate de `/admin` real | — |
 | 02 | [Usuários](./02-Usuarios.md) | 🟡 | `/settings`, papel de admin, perfil | — |
 | 03 | [Lugar e catálogo](./03-LugarECatalogo.md) | 💤 | `/discover`, `/places/*`, `/admin/categories`, fotos | `markers.ts`, `admin-categories.ts` |
 | 04 | [Moderação de ponto](./04-Moderacao.md) | 💤 | `/admin/moderation` | `admin-moderation.ts` |
