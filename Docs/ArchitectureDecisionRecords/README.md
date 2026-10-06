@@ -15,6 +15,7 @@ Este diretório contém o registro vivo e imutável de todas as decisões arquit
 | ADR | Título | Status | Data | Rodada / Módulo |
 |---|---|---|---|---|
 | [0001](0001-FundacaoEModuloUsuarios.md) | Fundação da API e Módulo de Usuários | Accepted | 2026-09-27 | 00 Fundação & 02 Usuários |
+| [0002](0002-ModuloAutenticacaoESessoes.md) | Módulo de Autenticação e Sessões (JWT + Refresh Token) | Accepted | 2026-10-04 | 01 Autenticação |
 
 ---
 

@@ -1,6 +1,80 @@
 @soromaps_api_HostAddress = http://localhost:5210
 
-GET {{soromaps_api_HostAddress}}/weatherforecast/
-Accept: application/json
+### 1. Criar um Usuário para Testes (se ainda não existir)
+POST {{soromaps_api_HostAddress}}/api/users
+Content-Type: application/json
 
-###
+{
+  "name": "Explorador Sorocabano",
+  "email": "explorador@soromaps.com",
+  "password": "SenhaSegura123!"
+}
+
+### 2. Login com Falha: E-mail inexistente ou Senha Errada
+# Esperado: 401 Unauthorized com ProblemDetails ("code": "auth.invalid_credentials")
+POST {{soromaps_api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "explorador@soromaps.com",
+  "password": "SenhaIncorreta!"
+}
+
+### 3. Login com Sucesso
+# Esperado: 200 OK com accessToken, refreshToken, expiresIn: 900 e dados do usuário
+# @name login
+POST {{soromaps_api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "explorador@soromaps.com",
+  "password": "SenhaSegura123!"
+}
+
+### Guardar as variáveis da resposta do login (caso use o REST Client)
+@accessToken = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### 4. Rotação de Refresh Token (Renovar Sessão)
+# Esperado: 200 OK com novo par de tokens
+# No banco: a sessão anterior terá revoked_at preenchido e uma nova sessão é inserida
+# @name refresh
+POST {{soromaps_api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 5. Tentativa de Reuso do Refresh Token Antigo (Ataque de Replay)
+# Esperado: 401 Unauthorized ("code": "auth.invalid_refresh_token")
+POST {{soromaps_api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 6. Logout Individual sem Autenticação
+# Esperado: 401 Unauthorized (sem header Authorization)
+POST {{soromaps_api_HostAddress}}/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh.response.body.refreshToken}}"
+}
+
+### 7. Logout Individual com Sucesso
+# Esperado: 204 No Content
+POST {{soromaps_api_HostAddress}}/api/auth/logout
+Authorization: Bearer {{refresh.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh.response.body.refreshToken}}"
+}
+
+### 8. Logout de Todos os Dispositivos (Logout All)
+# Esperado: 204 No Content (revoga todas as sessões ativas do usuário)
+POST {{soromaps_api_HostAddress}}/api/auth/logout-all
+Authorization: Bearer {{accessToken}}

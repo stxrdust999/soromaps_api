@@ -12,6 +12,8 @@ namespace soromaps_api.Data
         public DbSet<Achievement> Achievements => Set <Achievement>();
         public DbSet<Category> Categorys => Set <Category>();
 
+        public DbSet<Session> Sessions => Set<Session>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

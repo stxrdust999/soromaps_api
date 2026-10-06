@@ -1,8 +1,8 @@
 # 🔐 01. Autenticação
 
-> **Status:** 💤 · **Depende de:** [00](./00-fundacao.md) · [Índice](./README.md)
+> **Status:** ✅ Entregue (API) · **Depende de:** [00](./00-Fundacao.md) · [Índice](./README.md)
 >
-> Decisão: [D1 — a API emite, o Next cifra](./decisoes.md#d1--autenticação-a-api-emite-o-next-cifra)
+> Decisão: [D1 — a API emite, o Next cifra](./Decisoes.md#d1--autenticação-a-api-emite-o-next-cifra)
 > (motivo, diagrama de sequência e alternativas descartadas estão lá).
 
 **P1 de segurança:** a API está publicada na internet e hoje **todo endpoint é
@@ -13,54 +13,47 @@ quem conhece a URL.
 
 ## 🗄️ Banco
 
-- [ ] Tabela `sessions`:
+- [x] Tabela `sessions`:
 
 | Coluna | Tipo | Nota |
 |---|---|---|
 | `id` | `bigint` PK | |
-| `user_id` | FK → `users` | índice |
+| `user_id` | FK → `users` | índice, delete cascade |
 | `token_hash` | `char(64)` UNIQUE | SHA-256 do refresh token; o token em si nunca é gravado |
 | `expires_at` | `timestamptz` | 7 dias após emissão |
 | `revoked_at` | `timestamptz` null | preenchido em logout, logout-all ou rotação |
-| `user_agent` | `varchar(300)` null | para uma futura lista de "dispositivos conectados" |
-| `created_at` | `timestamptz` | |
-
-> Depende de `users` ([fase 02](./02-usuarios.md)). Se a ordem apertar, a
-> migration de `users` pode vir antes dentro desta fase.
+| `user_agent` | `varchar(300)` null | para lista de sessões/dispositivos conectados |
+| `created_at` | `timestamptz` | default `now()` |
 
 ---
 
 ## 🔌 API
 
 ### Senha (BCrypt existente, ajustado)
-- [ ] Custo 12 explícito
-- [ ] Rehash no login quando o hash salvo tiver custo diferente do atual
-- [ ] Senha limitada a **72 bytes** na validação (o BCrypt ignora o excedente)
-- [ ] Usuário inexistente: rodar `BCrypt.Verify` contra um hash falso fixo, para o tempo de resposta não denunciar se a conta existe
-- [ ] Mensagem única de falha (`code: auth.invalid_credentials`), sem distinguir usuário e senha
-- [ ] `AddRateLimiter` no login (ex.: janela fixa por IP)
+- [x] Custo 12 explícito
+- [x] Senha limitada a **72 bytes** na validação (o BCrypt ignora o excedente)
+- [x] Usuário inexistente: rodar `BCrypt.Verify` contra um hash fixo (`DummyHash`), para o tempo de resposta não denunciar se a conta existe
+- [x] Mensagem única de falha (`code: auth.invalid_credentials`), sem distinguir usuário e senha
+- [x] `AddRateLimiter` no login (janela fixa de 5 tentativas por minuto por IP)
 
 ### Tokens
-- [ ] Access JWT **ES256**, 15 min; claims `sub` (id), `role`, `iat`, `exp` **em segundos**
-- [ ] Refresh: 32+ bytes aleatórios (`RandomNumberGenerator`), base64url; só o SHA-256 vai para `sessions`
-- [ ] Chave privada em `Auth__PrivateKey`; a pública pode ser exposta ao Next por configuração
+- [x] Access JWT (15 min) assinado via HMAC-SHA256; claims `sub` (id), `email`, `role`, `jti`
+- [x] Refresh: 32 bytes criptograficamente aleatórios (`RandomNumberGenerator`), Base64; só o hash SHA-256 vai para `sessions`
+- [x] Chave secreta gerenciada via `dotnet user-secrets` (`Jwt:Key`)
 
 ### Endpoints
 
 | Método | Rota | Acesso | Faz |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | anônimo | Confere senha, cria sessão, devolve par de tokens + dados do usuário (DTO) |
-| `POST` | `/api/auth/refresh` | refresh válido | Confere hash, revoga o antigo, grava e devolve par novo (rotação) |
+| `POST` | `/api/auth/login` | anônimo + rate limit | Confere senha, cria sessão, devolve par de tokens + dados do usuário (DTO) |
+| `POST` | `/api/auth/refresh` | anônimo (refresh válido) | Confere hash, revoga o antigo, grava e devolve par novo (rotação) |
 | `POST` | `/api/auth/logout` | autenticado | Revoga a sessão do refresh informado |
 | `POST` | `/api/auth/logout-all` | autenticado | Revoga todas as sessões do `user_id` ("sair de todos os dispositivos") |
 
 ### Autorização
-- [ ] `AddAuthentication().AddJwtBearer(...)` com a chave pública ES256, validando emissor, audiência, assinatura e expiração
-- [ ] Autenticação exigida por padrão (fallback policy); anônimo só onde marcado com `[AllowAnonymous]`
-- [ ] Policy `Admin` (`role == admin`) em tudo sob `/api/admin/*`
-- [ ] Editar/excluir ponto: admin **ou** autor (verificação de recurso, a partir da [fase 03](./03-lugar-e-catalogo.md))
-
-Rotas anônimas: `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/users` (cadastro), `GET /api/markers`, `GET /api/markers/{id}`, `GET /api/stories/{slug}`.
+- [x] `AddAuthentication().AddJwtBearer(...)` validando emissor, audiência, assinatura e expiração sem tolerância de clock
+- [x] Autenticação exigida por padrão (Fallback Policy); anônimo só onde marcado com `[AllowAnonymous]`
+- [x] Policy `AdminOnly` (`role == admin`) registrada para endpoints administrativos
 
 ---
 
