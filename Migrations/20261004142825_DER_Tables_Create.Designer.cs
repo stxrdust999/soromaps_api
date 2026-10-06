@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using soromaps_api.Data;
@@ -11,9 +12,11 @@ using soromaps_api.Data;
 namespace soromaps_api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261004142825_DER_Tables_Create")]
+    partial class DER_Tables_Create
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -189,40 +192,6 @@ namespace soromaps_api.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("review_content");
-            modelBuilder.Entity("soromaps_api.Models.Session", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("revoked_at");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character(64)")
-                        .HasColumnName("token_hash")
-                        .IsFixedLength();
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
-                        .HasColumnName("user_agent");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -238,17 +207,6 @@ namespace soromaps_api.Migrations
                         .HasDatabaseName("ix_tb_reviews_user_id");
 
                     b.ToTable("tb_reviews", (string)null);
-                    b.HasKey("Id")
-                        .HasName("pk_sessions");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique()
-                        .HasDatabaseName("ix_sessions_token_hash");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_sessions_user_id");
-
-                    b.ToTable("sessions", (string)null);
                 });
 
             modelBuilder.Entity("soromaps_api.Models.User", b =>
@@ -383,25 +341,7 @@ namespace soromaps_api.Migrations
 
                     b.Navigation("User");
                 });
-
-            modelBuilder.Entity("soromaps_api.Models.Session", b =>
-                {
-                    b.HasOne("soromaps_api.Models.User", "User")
-                        .WithMany("Sessions")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_sessions_users_user_id");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("soromaps_api.Models.User", b =>
-                {
-                    b.Navigation("Sessions");
-                });
 #pragma warning restore 612, 618
-        });
         }
     }
 }
