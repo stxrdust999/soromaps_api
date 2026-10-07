@@ -189,14 +189,31 @@ namespace soromaps_api.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("review_content");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("ReviewId")
+                        .HasName("pk_tb_reviews");
+
+                    b.HasIndex("PlaceId")
+                        .HasDatabaseName("ix_tb_reviews_place_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_tb_reviews_user_id");
+
+                    b.ToTable("tb_reviews", (string)null);
+                });
+
             modelBuilder.Entity("soromaps_api.Models.Session", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<long>("SessionId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("session_id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("SessionId"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -228,27 +245,17 @@ namespace soromaps_api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.HasKey("ReviewId")
-                        .HasName("pk_tb_reviews");
-
-                    b.HasIndex("PlaceId")
-                        .HasDatabaseName("ix_tb_reviews_place_id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_tb_reviews_user_id");
-
-                    b.ToTable("tb_reviews", (string)null);
-                    b.HasKey("Id")
-                        .HasName("pk_sessions");
+                    b.HasKey("SessionId")
+                        .HasName("pk_tb_sessions");
 
                     b.HasIndex("TokenHash")
                         .IsUnique()
-                        .HasDatabaseName("ix_sessions_token_hash");
+                        .HasDatabaseName("ix_tb_sessions_token_hash");
 
                     b.HasIndex("UserId")
-                        .HasDatabaseName("ix_sessions_user_id");
+                        .HasDatabaseName("ix_tb_sessions_user_id");
 
-                    b.ToTable("sessions", (string)null);
+                    b.ToTable("tb_sessions", (string)null);
                 });
 
             modelBuilder.Entity("soromaps_api.Models.User", b =>
@@ -391,7 +398,7 @@ namespace soromaps_api.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_sessions_users_user_id");
+                        .HasConstraintName("fk_tb_sessions_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -401,7 +408,6 @@ namespace soromaps_api.Migrations
                     b.Navigation("Sessions");
                 });
 #pragma warning restore 612, 618
-        });
         }
     }
 }

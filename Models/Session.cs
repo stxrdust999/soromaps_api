@@ -1,10 +1,14 @@
-﻿namespace soromaps_api.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace soromaps_api.Models
 {
     public class Session
     {
-        public long Id { get; set; }
-        
+        public long SessionId { get; set; }
+
+        [ForeignKey("User")]
         public Guid UserId { get; set; }
+        public User User { get; set; } = null!;
 
         public string TokenHash { get; set; } = string.Empty;
 
@@ -16,6 +20,5 @@
 
         public DateTime CreatedAt { get; set; }
 
-        public User User { get; set; } = null!;
     }
 }

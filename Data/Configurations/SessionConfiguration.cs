@@ -8,7 +8,7 @@ namespace soromaps_api.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Session> builder)
         {
-            builder.HasKey(session => session.Id);
+            builder.HasKey(session => session.SessionId);
 
             builder.Property(session => session.TokenHash)
                 .IsRequired()

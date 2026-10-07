@@ -12,8 +12,8 @@ using soromaps_api.Data;
 namespace soromaps_api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261004142825_DER_Tables_Create")]
-    partial class DER_Tables_Create
+    [Migration("20261006004211_MigrationMerge")]
+    partial class MigrationMerge
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -209,6 +209,58 @@ namespace soromaps_api.Migrations
                     b.ToTable("tb_reviews", (string)null);
                 });
 
+            modelBuilder.Entity("soromaps_api.Models.Session", b =>
+                {
+                    b.Property<long>("SessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("session_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("SessionId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("token_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("SessionId")
+                        .HasName("pk_tb_sessions");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tb_sessions_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_tb_sessions_user_id");
+
+                    b.ToTable("tb_sessions", (string)null);
+                });
+
             modelBuilder.Entity("soromaps_api.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -340,6 +392,23 @@ namespace soromaps_api.Migrations
                     b.Navigation("Place");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Session", b =>
+                {
+                    b.HasOne("soromaps_api.Models.User", "User")
+                        .WithMany("Sessions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_sessions_users_user_id");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.User", b =>
+                {
+                    b.Navigation("Sessions");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,12 +1,13 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace soromaps_api.Migrations
 {
     /// <inheritdoc />
-    public partial class DER_Tables_Create : Migration
+    public partial class MigrationMerge : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -87,6 +88,30 @@ namespace soromaps_api.Migrations
                     table.ForeignKey(
                         name: "fk_tb_places_users_author_id",
                         column: x => x.author_id,
+                        principalTable: "tb_users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "tb_sessions",
+                columns: table => new
+                {
+                    session_id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    token_hash = table.Column<string>(type: "character(64)", fixedLength: true, maxLength: 64, nullable: false),
+                    expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    revoked_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    user_agent = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_tb_sessions", x => x.session_id);
+                    table.ForeignKey(
+                        name: "fk_tb_sessions_users_user_id",
+                        column: x => x.user_id,
                         principalTable: "tb_users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -176,6 +201,17 @@ namespace soromaps_api.Migrations
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_tb_sessions_token_hash",
+                table: "tb_sessions",
+                column: "token_hash",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_tb_sessions_user_id",
+                table: "tb_sessions",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_tb_users_email",
                 table: "tb_users",
                 column: "email",
@@ -190,6 +226,9 @@ namespace soromaps_api.Migrations
 
             migrationBuilder.DropTable(
                 name: "tb_comments");
+
+            migrationBuilder.DropTable(
+                name: "tb_sessions");
 
             migrationBuilder.DropTable(
                 name: "tb_reviews");
