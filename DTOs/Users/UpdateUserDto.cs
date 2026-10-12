@@ -1,18 +1,17 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace soromaps_api.DTOs.Users
-{
-    public record UpdateUserDto(
-        [MaxLength(100)]
-        string? Name,
+namespace soromaps_api.DTOs.Users;
 
-        [MaxLength(500)]
-        string? AvatarUrl,
+public sealed record UpdateUserDto(
+    [MaxLength(100, ErrorMessage = "user.name_too_long")]
+    string? Name,
 
-        [MaxLength(280)]
-        string? Biography,
+    [MaxLength(500, ErrorMessage = "user.avatar_url_too_long")]
+    string? AvatarUrl,
 
-        [MaxLength(60)]
-        string? Neighborhood
-    );
-}
+    [MaxLength(280, ErrorMessage = "user.biography_too_long")]
+    string? Biography,
+
+    [MaxLength(60, ErrorMessage = "user.neighborhood_too_long")]
+    string? Neighborhood
+);

@@ -1,17 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace soromaps_api.DTOs.Auth
-{
-    public record LoginRequestDto(
-        [Required(ErrorMessage = "auth.email_required")]
-        [EmailAddress(ErrorMessage = "auth.invalid_email")]
-        string Email,
+namespace soromaps_api.DTOs.Auth;
 
-        [Required(ErrorMessage = "auth.password_required")]
-        [MaxLength(72, ErrorMessage = "auth.password_too_long")]
-        string Password
-    )
-    {
+public sealed record LoginRequestDto(
+    [Required(ErrorMessage = "auth.email_required")]
+    [EmailAddress(ErrorMessage = "auth.invalid_email")]
+    string Email,
 
-    }
-}
+    [Required(ErrorMessage = "auth.password_required")]
+    [MaxLength(72, ErrorMessage = "auth.password_too_long")]
+    string Password
+);
