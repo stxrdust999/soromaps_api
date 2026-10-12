@@ -24,66 +24,117 @@ namespace soromaps_api.Migrations
 
             modelBuilder.Entity("soromaps_api.Models.Achievement", b =>
                 {
-                    b.Property<Guid>("AchievementId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("achievement_id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("AchievementDesc")
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("achievement_desc");
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)")
+                        .HasColumnName("description");
 
-                    b.Property<string>("AchievementName")
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("achievement_name");
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("name");
 
-                    b.HasKey("AchievementId")
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
                         .HasName("pk_tb_achievements");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tb_achievements_name");
 
                     b.ToTable("tb_achievements", (string)null);
                 });
 
             modelBuilder.Entity("soromaps_api.Models.Category", b =>
                 {
-                    b.Property<Guid>("CategoryId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("category_id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("CategoryDesc")
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("category_desc");
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
 
-                    b.HasKey("CategoryId")
-                        .HasName("pk_tb_categorys");
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.ToTable("tb_categorys", (string)null);
+                    b.HasKey("Id")
+                        .HasName("pk_tb_categories");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tb_categories_name");
+
+                    b.ToTable("tb_categories", (string)null);
                 });
 
             modelBuilder.Entity("soromaps_api.Models.Comment", b =>
                 {
-                    b.Property<Guid>("CommentId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("comment_id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("CommentContent")
+                    b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("comment_content");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<Guid>("ReviewId")
                         .HasColumnType("uuid")
                         .HasColumnName("review_id");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.HasKey("CommentId")
+                    b.HasKey("Id")
                         .HasName("pk_tb_comments");
 
                     b.HasIndex("ReviewId")
@@ -97,17 +148,19 @@ namespace soromaps_api.Migrations
 
             modelBuilder.Entity("soromaps_api.Models.Place", b =>
                 {
-                    b.Property<Guid>("PlaceId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("place_id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<string>("About")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)")
                         .HasColumnName("about");
 
-                    b.Property<Guid>("AuthorId")
+                    b.Property<Guid?>("AuthorId")
                         .HasColumnType("uuid")
                         .HasColumnName("author_id");
 
@@ -116,49 +169,60 @@ namespace soromaps_api.Migrations
                         .HasColumnName("category_id");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
                         .HasColumnName("description");
 
                     b.Property<bool>("HasWifi")
                         .HasColumnType("boolean")
                         .HasColumnName("has_wifi");
 
-                    b.Property<float>("Lat")
-                        .HasColumnType("real")
-                        .HasColumnName("lat");
+                    b.Property<bool>("IsPetFriendly")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_pet_friendly");
 
-                    b.Property<float>("Lng")
-                        .HasColumnType("real")
-                        .HasColumnName("lng");
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
 
                     b.Property<string>("Neighborhood")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
                         .HasColumnName("neighborhood");
 
-                    b.Property<bool>("PetFriendly")
-                        .HasColumnType("boolean")
-                        .HasColumnName("pet_friendly");
-
-                    b.Property<string>("PlaceName")
+                    b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("place_name");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("PlaceId")
+                    b.HasKey("Id")
                         .HasName("pk_tb_places");
 
                     b.HasIndex("AuthorId")
@@ -167,53 +231,74 @@ namespace soromaps_api.Migrations
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_tb_places_category_id");
 
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_tb_places_status_created_at");
+
                     b.ToTable("tb_places", (string)null);
                 });
 
             modelBuilder.Entity("soromaps_api.Models.Review", b =>
                 {
-                    b.Property<Guid>("ReviewId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("review_id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<Guid>("PlaceId")
                         .HasColumnType("uuid")
                         .HasColumnName("place_id");
 
-                    b.Property<float>("QtdStars")
-                        .HasColumnType("real")
-                        .HasColumnName("qtd_stars");
+                    b.Property<short>("Rating")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rating");
 
-                    b.Property<string>("ReviewContent")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("review_content");
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.HasKey("ReviewId")
+                    b.HasKey("Id")
                         .HasName("pk_tb_reviews");
-
-                    b.HasIndex("PlaceId")
-                        .HasDatabaseName("ix_tb_reviews_place_id");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_tb_reviews_user_id");
 
-                    b.ToTable("tb_reviews", (string)null);
+                    b.HasIndex("PlaceId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tb_reviews_place_id_user_id");
+
+                    b.ToTable("tb_reviews", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tb_reviews_rating", "rating >= 1 AND rating <= 5");
+                        });
                 });
 
             modelBuilder.Entity("soromaps_api.Models.Session", b =>
                 {
-                    b.Property<long>("SessionId")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasColumnName("session_id");
+                        .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("SessionId"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -245,7 +330,7 @@ namespace soromaps_api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.HasKey("SessionId")
+                    b.HasKey("Id")
                         .HasName("pk_tb_sessions");
 
                     b.HasIndex("TokenHash")
@@ -309,7 +394,7 @@ namespace soromaps_api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasDefaultValue("explorer")
+                        .HasDefaultValue("Explorer")
                         .HasColumnName("role");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -331,17 +416,16 @@ namespace soromaps_api.Migrations
             modelBuilder.Entity("soromaps_api.Models.Comment", b =>
                 {
                     b.HasOne("soromaps_api.Models.Review", "Review")
-                        .WithMany()
+                        .WithMany("Comments")
                         .HasForeignKey("ReviewId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_tb_comments_reviews_review_id");
 
                     b.HasOne("soromaps_api.Models.User", "User")
-                        .WithMany()
+                        .WithMany("Comments")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
+                        .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_tb_comments_users_user_id");
 
                     b.Navigation("Review");
@@ -352,18 +436,17 @@ namespace soromaps_api.Migrations
             modelBuilder.Entity("soromaps_api.Models.Place", b =>
                 {
                     b.HasOne("soromaps_api.Models.User", "Author")
-                        .WithMany()
+                        .WithMany("Places")
                         .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
+                        .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_tb_places_users_author_id");
 
                     b.HasOne("soromaps_api.Models.Category", "Category")
-                        .WithMany()
+                        .WithMany("Places")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_tb_places_tb_categorys_category_id");
+                        .HasConstraintName("fk_tb_places_tb_categories_category_id");
 
                     b.Navigation("Author");
 
@@ -373,17 +456,16 @@ namespace soromaps_api.Migrations
             modelBuilder.Entity("soromaps_api.Models.Review", b =>
                 {
                     b.HasOne("soromaps_api.Models.Place", "Place")
-                        .WithMany()
+                        .WithMany("Reviews")
                         .HasForeignKey("PlaceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_tb_reviews_tb_places_place_id");
 
                     b.HasOne("soromaps_api.Models.User", "User")
-                        .WithMany()
+                        .WithMany("Reviews")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
+                        .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_tb_reviews_users_user_id");
 
                     b.Navigation("Place");
@@ -403,8 +485,29 @@ namespace soromaps_api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("soromaps_api.Models.Category", b =>
+                {
+                    b.Navigation("Places");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Place", b =>
+                {
+                    b.Navigation("Reviews");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Review", b =>
+                {
+                    b.Navigation("Comments");
+                });
+
             modelBuilder.Entity("soromaps_api.Models.User", b =>
                 {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Places");
+
+                    b.Navigation("Reviews");
+
                     b.Navigation("Sessions");
                 });
 #pragma warning restore 612, 618
