@@ -17,6 +17,7 @@ public class ReviewsController(IReviewService reviewService) : ApiControllerBase
      */
     [HttpGet("place/{placeId:guid}")]
     [AllowAnonymous]
+    [EndpointName("listReviewsByPlace")]
     [EndpointSummary("Lista as avaliações de um lugar de forma paginada")]
     [ProducesResponseType(typeof(PagedResponseDto<ReviewResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponseDto<ReviewResponseDto>>> ListByPlaceId(
@@ -35,8 +36,11 @@ public class ReviewsController(IReviewService reviewService) : ApiControllerBase
      */
     [HttpPost]
     [Authorize]
+    [EndpointName("createReview")]
     [EndpointSummary("Cadastra uma nova avaliação para um lugar")]
     [ProducesResponseType(typeof(ReviewResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ReviewResponseDto>> Create([FromBody] CreateReviewDto request, CancellationToken cancellationToken)
     {
@@ -53,8 +57,11 @@ public class ReviewsController(IReviewService reviewService) : ApiControllerBase
      */
     [HttpPatch("{id:guid}")]
     [Authorize]
+    [EndpointName("updateReview")]
     [EndpointSummary("Atualiza uma avaliação existente")]
     [ProducesResponseType(typeof(ReviewResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ReviewResponseDto>> Update(Guid id, [FromBody] UpdateReviewDto request, CancellationToken cancellationToken)
@@ -69,8 +76,10 @@ public class ReviewsController(IReviewService reviewService) : ApiControllerBase
      */
     [HttpDelete("{id:guid}")]
     [Authorize]
+    [EndpointName("deleteReview")]
     [EndpointSummary("Remove uma avaliação")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

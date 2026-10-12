@@ -19,6 +19,7 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
      */
     [HttpGet]
     [AllowAnonymous]
+    [EndpointName("listPlaces")]
     [EndpointSummary("Lista todos os lugares aprovados de forma paginada")]
     [ProducesResponseType(typeof(PagedResponseDto<PlaceSummaryDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponseDto<PlaceSummaryDto>>> List(
@@ -36,6 +37,7 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
      */
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
+    [EndpointName("getPlaceById")]
     [EndpointSummary("Busca um lugar pelo ID")]
     [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -51,9 +53,11 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
      */
     [HttpPost]
     [Authorize]
+    [EndpointName("createPlace")]
     [EndpointSummary("Cadastra um novo lugar")]
     [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<PlaceResponseDto>> Create([FromBody] CreatePlaceDto request, CancellationToken cancellationToken)
     {
         var result = await placeService.CreateAsync(request, cancellationToken);
@@ -69,8 +73,11 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
      */
     [HttpPatch("{id:guid}")]
     [Authorize]
+    [EndpointName("updatePlace")]
     [EndpointSummary("Atualiza parcialmente os dados de um lugar")]
     [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PlaceResponseDto>> Update(Guid id, [FromBody] UpdatePlaceDto request, CancellationToken cancellationToken)
@@ -85,8 +92,12 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
      */
     [HttpPatch("{id:guid}/status")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("updatePlaceStatus")]
     [EndpointSummary("Atualiza o status de aprovação de um lugar (Administrador)")]
     [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PlaceResponseDto>> UpdateStatus(Guid id, [FromBody] UpdatePlaceStatusDto request, CancellationToken cancellationToken)
     {
@@ -100,8 +111,10 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
      */
     [HttpDelete("{id:guid}")]
     [Authorize]
+    [EndpointName("deletePlace")]
     [EndpointSummary("Remove um lugar")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

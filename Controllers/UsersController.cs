@@ -20,8 +20,10 @@ public class UsersController(IUserService userService) : ApiControllerBase
     [HttpPost]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Register)]
+    [EndpointName("registerUser")]
     [EndpointSummary("Cadastra um novo usuário")]
     [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<UserResponseDto>> Register([FromBody] RegisterUserDto request, CancellationToken cancellationToken)
     {
@@ -38,8 +40,10 @@ public class UsersController(IUserService userService) : ApiControllerBase
      */
     [HttpGet("me")]
     [Authorize]
+    [EndpointName("getCurrentUser")]
     [EndpointSummary("Retorna os dados do perfil do usuário autenticado")]
     [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserResponseDto>> GetCurrent(CancellationToken cancellationToken)
     {
@@ -53,8 +57,11 @@ public class UsersController(IUserService userService) : ApiControllerBase
      */
     [HttpPatch("me")]
     [Authorize]
+    [EndpointName("updateCurrentUser")]
     [EndpointSummary("Atualiza os dados do perfil do usuário autenticado")]
     [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserResponseDto>> UpdateCurrent([FromBody] UpdateUserDto request, CancellationToken cancellationToken)
     {
@@ -68,8 +75,10 @@ public class UsersController(IUserService userService) : ApiControllerBase
      */
     [HttpDelete("me")]
     [Authorize]
+    [EndpointName("deleteCurrentUser")]
     [EndpointSummary("Exclui a conta do usuário autenticado")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteCurrent(CancellationToken cancellationToken)
     {
@@ -83,6 +92,7 @@ public class UsersController(IUserService userService) : ApiControllerBase
      */
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
+    [EndpointName("getPublicUserProfile")]
     [EndpointSummary("Busca o perfil público de um usuário pela ID")]
     [ProducesResponseType(typeof(PublicUserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -98,8 +108,11 @@ public class UsersController(IUserService userService) : ApiControllerBase
      */
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("listUsers")]
     [EndpointSummary("Lista usuários com paginação (Administrador)")]
     [ProducesResponseType(typeof(PagedResponseDto<UserResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PagedResponseDto<UserResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
     {
         var result = await userService.ListAsync(pagination, cancellationToken);

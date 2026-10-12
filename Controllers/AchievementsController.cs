@@ -18,6 +18,7 @@ public class AchievementsController(IAchievementService achievementService) : Ap
      */
     [HttpGet]
     [AllowAnonymous]
+    [EndpointName("listAchievements")]
     [EndpointSummary("Lista todas as conquistas de forma paginada")]
     [ProducesResponseType(typeof(PagedResponseDto<AchievementResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponseDto<AchievementResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
@@ -32,6 +33,7 @@ public class AchievementsController(IAchievementService achievementService) : Ap
      */
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
+    [EndpointName("getAchievementById")]
     [EndpointSummary("Busca uma conquista pelo ID")]
     [ProducesResponseType(typeof(AchievementResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -47,8 +49,12 @@ public class AchievementsController(IAchievementService achievementService) : Ap
      */
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("createAchievement")]
     [EndpointSummary("Cadastra uma nova conquista (Administrador)")]
     [ProducesResponseType(typeof(AchievementResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AchievementResponseDto>> Create([FromBody] CreateAchievementDto request, CancellationToken cancellationToken)
     {
@@ -65,8 +71,12 @@ public class AchievementsController(IAchievementService achievementService) : Ap
      */
     [HttpPatch("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("updateAchievement")]
     [EndpointSummary("Atualiza parcialmente uma conquista (Administrador)")]
     [ProducesResponseType(typeof(AchievementResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AchievementResponseDto>> Update(Guid id, [FromBody] UpdateAchievementDto request, CancellationToken cancellationToken)
     {
@@ -80,8 +90,11 @@ public class AchievementsController(IAchievementService achievementService) : Ap
      */
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("deleteAchievement")]
     [EndpointSummary("Remove uma conquista (Administrador)")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {

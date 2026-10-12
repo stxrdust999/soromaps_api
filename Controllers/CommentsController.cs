@@ -17,6 +17,7 @@ public class CommentsController(ICommentService commentService) : ApiControllerB
      */
     [HttpGet("review/{reviewId:guid}")]
     [AllowAnonymous]
+    [EndpointName("listCommentsByReview")]
     [EndpointSummary("Lista os comentários de uma avaliação de forma paginada")]
     [ProducesResponseType(typeof(PagedResponseDto<CommentResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponseDto<CommentResponseDto>>> ListByReviewId(
@@ -34,9 +35,11 @@ public class CommentsController(ICommentService commentService) : ApiControllerB
      */
     [HttpPost]
     [Authorize]
+    [EndpointName("createComment")]
     [EndpointSummary("Adiciona um comentário a uma avaliação")]
     [ProducesResponseType(typeof(CommentResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<CommentResponseDto>> Create([FromBody] CreateCommentDto request, CancellationToken cancellationToken)
     {
         var result = await commentService.CreateAsync(request, cancellationToken);
@@ -52,8 +55,11 @@ public class CommentsController(ICommentService commentService) : ApiControllerB
      */
     [HttpPatch("{id:guid}")]
     [Authorize]
+    [EndpointName("updateComment")]
     [EndpointSummary("Atualiza um comentário existente")]
     [ProducesResponseType(typeof(CommentResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CommentResponseDto>> Update(Guid id, [FromBody] UpdateCommentDto request, CancellationToken cancellationToken)
@@ -68,8 +74,10 @@ public class CommentsController(ICommentService commentService) : ApiControllerB
      */
     [HttpDelete("{id:guid}")]
     [Authorize]
+    [EndpointName("deleteComment")]
     [EndpointSummary("Remove um comentário")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

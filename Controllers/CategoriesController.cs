@@ -18,6 +18,7 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
      */
     [HttpGet]
     [AllowAnonymous]
+    [EndpointName("listCategories")]
     [EndpointSummary("Lista todas as categorias de forma paginada")]
     [ProducesResponseType(typeof(PagedResponseDto<CategoryResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponseDto<CategoryResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
@@ -32,6 +33,7 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
      */
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
+    [EndpointName("getCategoryById")]
     [EndpointSummary("Busca uma categoria pelo ID")]
     [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -47,8 +49,12 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
      */
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("createCategory")]
     [EndpointSummary("Cadastra uma nova categoria (Administrador)")]
     [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<CategoryResponseDto>> Create([FromBody] CreateCategoryDto request, CancellationToken cancellationToken)
     {
@@ -65,8 +71,12 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
      */
     [HttpPatch("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("updateCategory")]
     [EndpointSummary("Atualiza parcialmente uma categoria (Administrador)")]
     [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CategoryResponseDto>> Update(Guid id, [FromBody] UpdateCategoryDto request, CancellationToken cancellationToken)
     {
@@ -80,8 +90,12 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
      */
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("deleteCategory")]
     [EndpointSummary("Remove uma categoria (Administrador)")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {

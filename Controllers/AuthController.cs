@@ -20,6 +20,8 @@ public class AuthController(IAuthService authService) : ApiControllerBase
     [HttpPost("login")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Login)]
+    [EndpointName("login")]
+    [EndpointSummary("Autentica o usuário e gera par de tokens JWT")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
@@ -37,6 +39,8 @@ public class AuthController(IAuthService authService) : ApiControllerBase
     [HttpPost("refresh")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Refresh)]
+    [EndpointName("refreshToken")]
+    [EndpointSummary("Renova o token de acesso através de rotação de refresh token")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request, CancellationToken cancellationToken)
@@ -52,7 +56,10 @@ public class AuthController(IAuthService authService) : ApiControllerBase
      */
     [HttpPost("logout")]
     [Authorize]
+    [EndpointName("logout")]
+    [EndpointSummary("Encerra a sessão atual do dispositivo")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto request, CancellationToken cancellationToken)
     {
         var result = await authService.LogoutAsync(request, cancellationToken);
@@ -65,7 +72,10 @@ public class AuthController(IAuthService authService) : ApiControllerBase
      */
     [HttpPost("logout-all")]
     [Authorize]
+    [EndpointName("logoutAll")]
+    [EndpointSummary("Encerra todas as sessões ativas do usuário em todos os dispositivos")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
     {
         var result = await authService.LogoutAllAsync(cancellationToken);
