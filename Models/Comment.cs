@@ -1,19 +1,17 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+namespace soromaps_api.Models;
 
-namespace soromaps_api.Models
+public class Comment : IAuditableEntity
 {
-    public class Comment
-    {
-        public Guid CommentId { get; set; }
+    public Guid Id { get; set; }
 
-        [ForeignKey("User")]
-        public Guid UserId { get; set; }
-        public User User{ get; set; }
+    public Guid ReviewId { get; set; }
+    public Review Review { get; set; } = null!;
 
-        [ForeignKey("Review")]
-        public Guid ReviewId { get; set; }
-        public Review Review { get; set; }
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
 
-        public string CommentContent { get; set; }
-    }
+    public string Content { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }

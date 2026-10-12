@@ -1,39 +1,29 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using soromaps_api.Models.Enums;
 
-namespace soromaps_api.Models
+namespace soromaps_api.Models;
+
+public class Place : IAuditableEntity
 {
-    public class Place
-    {
-        public Guid PlaceId { get; set; }
+    public Guid Id { get; set; }
 
-        [ForeignKey("Category")]
-        public Guid CategoryId { get; set; }
-        public Category Category { get; set; }
+    public Guid CategoryId { get; set; }
+    public Category Category { get; set; } = null!;
 
-        [ForeignKey("Author")]
-        public Guid AuthorId { get; set; }
-        public User Author { get; set; }
+    public Guid? AuthorId { get; set; }
+    public User? Author { get; set; }
 
-        public string PlaceName { get; set; }
-        public float Lat { get; set; }
-        public float Lng { get; set; }
-        public string Neighborhood { get; set; }
-        public string About { get; set; } 
-        public string Description { get; set; } 
-        public bool HasWifi { get; set; }
-        public bool PetFriendly { get; set; }
-        public Status Status { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
-    }
+    public string Name { get; set; } = string.Empty;
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public string Neighborhood { get; set; } = string.Empty;
+    public string About { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool HasWifi { get; set; }
+    public bool IsPetFriendly { get; set; }
+    public PlaceStatus Status { get; set; } = PlaceStatus.Pending;
 
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 
-    public enum Status
-    {
-        pending,
-        returned,
-        approved,
-        rejected
-
-    }
+    public ICollection<Review> Reviews { get; set; } = [];
 }
