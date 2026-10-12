@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.OpenApi;
 using soromaps_api.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +19,54 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Info = new OpenApiInfo
+        {
+            Title = "Soromaps API",
+            Version = "v1",
+            Description = "API oficial da plataforma Soromaps — Mapeamento urbano e colaborativo de Sorocaba."
+        };
+
+        var components = document.Components ??= new OpenApiComponents();
+        var securitySchemes = components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        securitySchemes.Add("Bearer", new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description = "Insira o token JWT de acesso gerado no endpoint de login."
+        });
+
+        return Task.CompletedTask;
+    });
+
+    options.AddOperationTransformer((operation, context, cancellationToken) =>
+    {
+        var authAttributes = context.Description.ActionDescriptor.EndpointMetadata
+            .OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>();
+
+        var allowAnonymous = context.Description.ActionDescriptor.EndpointMetadata
+            .OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>();
+
+        if (authAttributes.Any() && !allowAnonymous.Any())
+        {
+            var requirement = new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("Bearer", null, null)] = new List<string>()
+            };
+
+            var security = operation.Security ??= new List<OpenApiSecurityRequirement>();
+            security.Add(requirement);
+        }
+
+        return Task.CompletedTask;
+    });
+});
 
 var app = builder.Build();
 
