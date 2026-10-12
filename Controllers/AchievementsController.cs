@@ -1,0 +1,92 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using soromaps_api.Constants;
+using soromaps_api.DTOs.Achievements;
+using soromaps_api.DTOs.Common;
+using soromaps_api.Services.Interfaces;
+
+namespace soromaps_api.Controllers;
+
+/**
+ * Controller responsável pelo catálogo de conquistas do sistema.
+ * Disponibiliza listagem aberta de conquistas e restringe a administração a Administradores.
+ */
+public class AchievementsController(IAchievementService achievementService) : ApiControllerBase
+{
+    /**
+     * Lista todas as conquistas do sistema de forma paginada.
+     */
+    [HttpGet]
+    [AllowAnonymous]
+    [EndpointSummary("Lista todas as conquistas de forma paginada")]
+    [ProducesResponseType(typeof(PagedResponseDto<AchievementResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponseDto<AchievementResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
+    {
+        var result = await achievementService.ListAsync(pagination, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Busca detalhes de uma conquista pelo seu ID.
+     */
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    [EndpointSummary("Busca uma conquista pelo ID")]
+    [ProducesResponseType(typeof(AchievementResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AchievementResponseDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await achievementService.GetByIdAsync(id, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Cria uma nova conquista no sistema (restrito a Administradores).
+     */
+    [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Cadastra uma nova conquista (Administrador)")]
+    [ProducesResponseType(typeof(AchievementResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<AchievementResponseDto>> Create([FromBody] CreateAchievementDto request, CancellationToken cancellationToken)
+    {
+        var result = await achievementService.CreateAsync(request, cancellationToken);
+
+        if (result.IsFailure)
+            return HandleFailure(result.Error!);
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
+    }
+
+    /**
+     * Atualiza dados de uma conquista existente (restrito a Administradores).
+     */
+    [HttpPatch("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Atualiza parcialmente uma conquista (Administrador)")]
+    [ProducesResponseType(typeof(AchievementResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AchievementResponseDto>> Update(Guid id, [FromBody] UpdateAchievementDto request, CancellationToken cancellationToken)
+    {
+        var result = await achievementService.UpdateAsync(id, request, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Remove uma conquista do sistema (restrito a Administradores).
+     */
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Remove uma conquista (Administrador)")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await achievementService.DeleteAsync(id, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
+    }
+}

@@ -1,64 +1,92 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using soromaps_api.Data;
-using soromaps_api.Models;
-using static soromaps_api.DTOs.CategoryDto;
+using soromaps_api.Constants;
+using soromaps_api.DTOs.Categories;
+using soromaps_api.DTOs.Common;
+using soromaps_api.Services.Interfaces;
 
-namespace soromaps_api.Controllers
+namespace soromaps_api.Controllers;
+
+/**
+ * Controller responsável pelas rotas de categorias de lugares.
+ * Permite leitura pública e restringe criação/atualização/remoção a Administradores.
+ */
+public class CategoriesController(ICategoryService categoryService) : ApiControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class CategoriesController (AppDbContext context) : ControllerBase
+    /**
+     * Lista todas as categorias com paginação e ordenação alfabética.
+     */
+    [HttpGet]
+    [AllowAnonymous]
+    [EndpointSummary("Lista todas as categorias de forma paginada")]
+    [ProducesResponseType(typeof(PagedResponseDto<CategoryResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponseDto<CategoryResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
     {
-        [HttpGet]
-        [EndpointSummary("Lista todas as categorias")]
-        [ProducesResponseType(typeof(IEnumerable<CategoryResponseDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<CategoryResponseDto>>> GetAll()
-        {
-            var categories = await context.Categorys
-                .AsNoTracking()
-                .OrderBy(c => c.CategoryDesc)
-                .Select(c => CategoryResponseDto.FromEntity(c))
-                .ToListAsync();
+        var result = await categoryService.ListAsync(pagination, cancellationToken);
 
-            return Ok(categories);
-        }
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-        [HttpGet("{id:guid}")]
-        [EndpointSummary("Busca uma categoria pela ID")]
-        [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<CategoryResponseDto>> GetById(Guid id)
-        {
-            var category = await context.Categorys
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.CategoryId == id);
+    /**
+     * Busca detalhes de uma categoria por ID.
+     */
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    [EndpointSummary("Busca uma categoria pelo ID")]
+    [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CategoryResponseDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await categoryService.GetByIdAsync(id, cancellationToken);
 
-            if (category is null)
-                return NotFound();
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-            return Ok(CategoryResponseDto.FromEntity(category));
-        }
+    /**
+     * Cadastra uma nova categoria no sistema (restrito a Administradores).
+     */
+    [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Cadastra uma nova categoria (Administrador)")]
+    [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CategoryResponseDto>> Create([FromBody] CreateCategoryDto request, CancellationToken cancellationToken)
+    {
+        var result = await categoryService.CreateAsync(request, cancellationToken);
 
-        [HttpPost]
-        [EndpointSummary("Cadastra uma nova categoria")]
-        [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status201Created)]
-        public async Task<ActionResult<CategoryResponseDto>> Create(CreateCategoryDto request)
-        {
-            var category = new Category
-            {
-                CategoryDesc = request.CategoryDesc.Trim()
-            };
+        if (result.IsFailure)
+            return HandleFailure(result.Error!);
 
-            context.Categorys.Add(category);
-            await context.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
+    }
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = category.CategoryId },
-                CategoryResponseDto.FromEntity(category)
-            );
-        }
+    /**
+     * Atualiza o nome de uma categoria (restrito a Administradores).
+     */
+    [HttpPatch("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Atualiza parcialmente uma categoria (Administrador)")]
+    [ProducesResponseType(typeof(CategoryResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CategoryResponseDto>> Update(Guid id, [FromBody] UpdateCategoryDto request, CancellationToken cancellationToken)
+    {
+        var result = await categoryService.UpdateAsync(id, request, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Remove uma categoria se não possuir lugares vinculados (restrito a Administradores).
+     */
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Remove uma categoria (Administrador)")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await categoryService.DeleteAsync(id, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }
 }

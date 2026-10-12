@@ -1,119 +1,113 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using soromaps_api.Data;
-using soromaps_api.Models;
-using static soromaps_api.DTOs.PlaceDto;
+using soromaps_api.Constants;
+using soromaps_api.DTOs.Common;
+using soromaps_api.DTOs.Places;
+using soromaps_api.Services.Interfaces;
 
-namespace soromaps_api.Controllers
+namespace soromaps_api.Controllers;
+
+/**
+ * Controller responsável pelos pontos de interesse e locais no mapa.
+ * Expõe busca pública de pontos aprovados, submissão de locais e moderação exclusiva para administradores.
+ */
+public class PlacesController(IPlaceService placeService) : ApiControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class PlacesController(AppDbContext context) : ControllerBase
+    /**
+     * Lista lugares aprovados de forma paginada para o mapa.
+     * Suporta filtro opcional por categoria.
+     */
+    [HttpGet]
+    [AllowAnonymous]
+    [EndpointSummary("Lista todos os lugares aprovados de forma paginada")]
+    [ProducesResponseType(typeof(PagedResponseDto<PlaceSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponseDto<PlaceSummaryDto>>> List(
+        [FromQuery] PaginationQueryDto pagination,
+        [FromQuery] Guid? categoryId,
+        CancellationToken cancellationToken)
     {
-        [HttpGet]
-        [EndpointSummary("Lista todos os lugares")]
-        [ProducesResponseType(typeof(IEnumerable<PlaceResponseDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<PlaceResponseDto>>> GetAll()
-        {
-            var places = await context.Places
-                .AsNoTracking()
-                .OrderByDescending(p => p.CreatedAt)
-                .Select(p => PlaceResponseDto.FromEntity(p))
-                .ToListAsync();
+        var result = await placeService.ListApprovedAsync(pagination, categoryId, cancellationToken);
 
-            return Ok(places);
-        }
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-        [HttpGet("{id:guid}")]
-        [EndpointSummary("Busca um lugar pela ID")]
-        [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<PlaceResponseDto>> GetById(Guid id)
-        {
-            var place = await context.Places
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.PlaceId == id);
+    /**
+     * Obtém os detalhes completos de um lugar pelo seu ID.
+     */
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    [EndpointSummary("Busca um lugar pelo ID")]
+    [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlaceResponseDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await placeService.GetByIdAsync(id, cancellationToken);
 
-            if (place is null)
-                return NotFound();
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-            return Ok(PlaceResponseDto.FromEntity(place));
-        }
+    /**
+     * Cadastra uma nova sugestão de lugar no mapa (inicia como 'Pending').
+     */
+    [HttpPost]
+    [Authorize]
+    [EndpointSummary("Cadastra um novo lugar")]
+    [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PlaceResponseDto>> Create([FromBody] CreatePlaceDto request, CancellationToken cancellationToken)
+    {
+        var result = await placeService.CreateAsync(request, cancellationToken);
 
-        [HttpPost]
-        [EndpointSummary("Cadastra um novo lugar")]
-        [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status201Created)]
-        public async Task<ActionResult<PlaceResponseDto>> Create(CreatePlaceDto request)
-        {
-            // NOTA: O AuthorId idealmente deve vir do Token JWT (User.Claims)
-            // Aqui estamos simulando um ID vazio apenas para compilar de acordo com sua model
-            var currentUserId = Guid.Empty;
+        if (result.IsFailure)
+            return HandleFailure(result.Error!);
 
-            var place = new Place
-            {
-                CategoryId = request.CategoryId,
-                AuthorId = currentUserId,
-                PlaceName = request.PlaceName.Trim(),
-                Lat = request.Lat,
-                Lng = request.Lng,
-                Neighborhood = request.Neighborhood.Trim(),
-                About = request.About.Trim(),
-                Description = request.Description.Trim(),
-                HasWifi = request.HasWifi,
-                PetFriendly = request.PetFriendly,
-                Status = Status.pending, // Definido automaticamente pelo sistema
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+        return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
+    }
 
-            context.Places.Add(place);
-            await context.SaveChangesAsync();
+    /**
+     * Atualiza dados de um lugar existente (restrito ao autor ou administrador).
+     */
+    [HttpPatch("{id:guid}")]
+    [Authorize]
+    [EndpointSummary("Atualiza parcialmente os dados de um lugar")]
+    [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlaceResponseDto>> Update(Guid id, [FromBody] UpdatePlaceDto request, CancellationToken cancellationToken)
+    {
+        var result = await placeService.UpdateAsync(id, request, cancellationToken);
 
-            return CreatedAtAction(nameof(GetById), new { id = place.PlaceId }, PlaceResponseDto.FromEntity(place));
-        }
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-        [HttpPatch("{id:guid}")]
-        [EndpointSummary("Atualiza parcialmente um lugar")]
-        [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<PlaceResponseDto>> Update(Guid id, UpdatePlaceDto request)
-        {
-            var place = await context.Places.FindAsync(id);
+    /**
+     * Altera o status de moderação do local (exclusivo para Administradores).
+     */
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Atualiza o status de aprovação de um lugar (Administrador)")]
+    [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlaceResponseDto>> UpdateStatus(Guid id, [FromBody] UpdatePlaceStatusDto request, CancellationToken cancellationToken)
+    {
+        var result = await placeService.UpdateStatusAsync(id, request, cancellationToken);
 
-            if (place is null)
-                return NotFound();
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-            if (request.CategoryId.HasValue) place.CategoryId = request.CategoryId.Value;
-            if (request.PlaceName is not null) place.PlaceName = request.PlaceName.Trim();
-            if (request.Lat.HasValue) place.Lat = request.Lat.Value;
-            if (request.Lng.HasValue) place.Lng = request.Lng.Value;
-            if (request.Neighborhood is not null) place.Neighborhood = request.Neighborhood.Trim();
-            if (request.About is not null) place.About = request.About.Trim();
-            if (request.Description is not null) place.Description = request.Description.Trim();
-            if (request.HasWifi.HasValue) place.HasWifi = request.HasWifi.Value;
-            if (request.PetFriendly.HasValue) place.PetFriendly = request.PetFriendly.Value;
-            if (request.Status.HasValue) place.Status = request.Status.Value;
+    /**
+     * Exclui um lugar do sistema (restrito ao autor ou administrador).
+     */
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    [EndpointSummary("Remove um lugar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await placeService.DeleteAsync(id, cancellationToken);
 
-            place.UpdatedAt = DateTime.UtcNow;
-
-            await context.SaveChangesAsync();
-
-            return Ok(PlaceResponseDto.FromEntity(place));
-        }
-
-        [HttpDelete("{id:guid}")]
-        [EndpointSummary("Remove um lugar")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            var place = await context.Places.FindAsync(id);
-            if (place is null) return NotFound();
-
-            context.Places.Remove(place);
-            await context.SaveChangesAsync();
-
-            return NoContent();
-        }
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }
 }

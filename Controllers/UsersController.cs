@@ -1,136 +1,109 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Mvc;
-using soromaps_api.Data;
-using soromaps_api.DTOs.Users;
-using BCrypt.Net;
-using soromaps_api.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using soromaps_api.Constants;
+using soromaps_api.DTOs.Common;
+using soromaps_api.DTOs.Users;
+using soromaps_api.Services.Interfaces;
 
-namespace soromaps_api.Controllers
+namespace soromaps_api.Controllers;
+
+/**
+ * Controller responsável pela gestão de usuários e perfis.
+ * Separa explicitamente rotas públicas, rotas do usuário logado (/me) e administração.
+ */
+public class UsersController(IUserService userService) : ApiControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UsersController(AppDbContext context) : ControllerBase
+    /**
+     * Cadastra um novo usuário no sistema com rate limiting de prevenção contra abuso.
+     */
+    [HttpPost]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Register)]
+    [EndpointSummary("Cadastra um novo usuário")]
+    [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<UserResponseDto>> Register([FromBody] RegisterUserDto request, CancellationToken cancellationToken)
     {
-        [HttpGet]
-        [EndpointSummary("Lista todos os usuários")]
-        [ProducesResponseType(typeof(IEnumerable<UserResponseDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAll()
-        {
-            var users = await context.Users
-                .AsNoTracking()
-                .OrderBy(u => u.Name)
-                .Select(u => UserResponseDto.FromEntity(u))
-                .ToListAsync();
+        var result = await userService.RegisterAsync(request, cancellationToken);
 
-            return Ok(users);
-        }
+        if (result.IsFailure)
+            return HandleFailure(result.Error!);
 
-        [HttpGet("{id:guid}")]
-        [EndpointSummary("Busca um usuário pela ID")]
-        [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<UserResponseDto>> GetById(Guid id)
-        {
-            var user = await context.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id == id);
+        return CreatedAtAction(nameof(GetPublicProfile), new { id = result.Value.Id }, result.Value);
+    }
 
-            if (user is null)
-                return NotFound();
+    /**
+     * Retorna o perfil completo do usuário autenticado no token atual.
+     */
+    [HttpGet("me")]
+    [Authorize]
+    [EndpointSummary("Retorna os dados do perfil do usuário autenticado")]
+    [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserResponseDto>> GetCurrent(CancellationToken cancellationToken)
+    {
+        var result = await userService.GetCurrentAsync(cancellationToken);
 
-            return Ok(UserResponseDto.FromEntity(user));
-        }
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-        [HttpPost]
-        [AllowAnonymous]
-        [EndpointSummary("Cadastra um novo usuário")]
-        [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-        public async Task<ActionResult<UserResponseDto>> Register(RegisterUserDto request)
-        {
-            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+    /**
+     * Atualiza dados de perfil do usuário autenticado sem risco de IDOR.
+     */
+    [HttpPatch("me")]
+    [Authorize]
+    [EndpointSummary("Atualiza os dados do perfil do usuário autenticado")]
+    [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserResponseDto>> UpdateCurrent([FromBody] UpdateUserDto request, CancellationToken cancellationToken)
+    {
+        var result = await userService.UpdateCurrentAsync(request, cancellationToken);
 
-            var emailExists = await context.Users
-                .AnyAsync(u => u.Email.ToLower() == normalizedEmail);
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-            if (emailExists)
-            {
-                return Conflict(new ProblemDetails
-                {
-                    Status = StatusCodes.Status409Conflict,
-                    Title = "Conflito",
-                    Detail = "Já existe uma conta cadastrada com esse e-mail",
-                    Extensions = { ["code"] = "user.email_taken" }
-                });
-            }
+    /**
+     * Exclui a conta do usuário autenticado.
+     */
+    [HttpDelete("me")]
+    [Authorize]
+    [EndpointSummary("Exclui a conta do usuário autenticado")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteCurrent(CancellationToken cancellationToken)
+    {
+        var result = await userService.DeleteCurrentAsync(cancellationToken);
 
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
+    }
 
-            var user = new User
-            {
-                Name = request.Name.Trim(),
-                Email = normalizedEmail,
-                PasswordHash = passwordHash,
-                Role = "explorer"
-            };
+    /**
+     * Retorna dados públicos de um usuário por ID omitindo e-mail para privacidade.
+     */
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    [EndpointSummary("Busca o perfil público de um usuário pela ID")]
+    [ProducesResponseType(typeof(PublicUserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PublicUserProfileDto>> GetPublicProfile(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await userService.GetPublicProfileAsync(id, cancellationToken);
 
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = user.Id },
-                UserResponseDto.FromEntity(user)
-            );
-        }
+    /**
+     * Lista usuários do sistema com paginação (exclusivo para Administradores).
+     */
+    [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointSummary("Lista usuários com paginação (Administrador)")]
+    [ProducesResponseType(typeof(PagedResponseDto<UserResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponseDto<UserResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
+    {
+        var result = await userService.ListAsync(pagination, cancellationToken);
 
-        [HttpPatch("{id:guid}")]
-        [EndpointSummary("Atualiza parcialmente o perfil do usuário")]
-        [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<UserResponseDto>> Update(Guid id, UpdateUserDto request)
-        {
-            var user = await context.Users.FindAsync(id);
-
-            if (user is null)
-                return NotFound();
-
-            if (request.Name is not null)
-                user.Name = request.Name.Trim();
-
-            if (request.AvatarUrl is not null)
-                user.AvatarUrl = request.AvatarUrl;
-
-            if (request.Biography is not null)
-                user.Biography = request.Biography;
-
-            if (request.Neighborhood is not null)
-                user.Neighborhood = request.Neighborhood;
-
-            user.UpdatedAt = DateTime.UtcNow;
-
-            await context.SaveChangesAsync();
-
-            return Ok(UserResponseDto.FromEntity(user));
-        }
-
-        [HttpDelete("{id:guid}")]
-        [EndpointSummary("Remove um usuário")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            var user = await context.Users.FindAsync(id);
-
-            if (user is null)
-                return NotFound();
-
-            context.Users.Remove(user);
-            await context.SaveChangesAsync();
-
-            return NoContent();
-        }
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 }
