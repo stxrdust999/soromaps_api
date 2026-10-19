@@ -1,69 +1,64 @@
-# 🏅 07. Gamificação
+# 🏆 07. Motor de Gamificação e Conquistas
 
-> **Status:** 💤 · **Depende de:** [04](./04-moderacao.md), [05](./05-contribuicao.md), [06](./06-atividade.md) · [Índice](./README.md)
+> **Status:** 💤 Pendente · **Depende de:** [04-ModeracaoDeLocais.md](./04-ModeracaoDeLocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md), [06-AtividadeDoExplorador.md](./06-AtividadeDoExplorador.md) · [Índice](./README.md)
 
-Conquista só, sem XP (decisão de 2026-08-12). O título do explorador é
-`COUNT(user_achievements)`. É a primeira regra de negócio real da API, e por
-isso a fase que introduz a camada de serviço.
+`tb_achievements` e `AchievementsController` já existem com `id`, `name` e `description`. Falta estruturar os critérios de desbloqueio no banco, criar a tabela de conquistas desbloqueadas por usuário (`tb_user_achievements`) e implementar o motor idempotente de avaliação de progresso.
 
 ---
 
-## 🗄️ Banco
+## 🗄️ Banco de Dados
 
-- [ ] `achievements` — **`HasData`**:
+### 1. Enriquecer `tb_achievements` (`Achievement`)
+- [ ] Adicionar colunas em `tb_achievements`:
+  - `icon` (`varchar(40)` — chave do ícone em `ACHIEVEMENT_ICONS`)
+  - `color` (`varchar(20)` — token de cor do badge)
+  - `event_type` (`varchar(30)` — `'visit'`, `'review'`, `'favorite'`, `'create_place'`, `'comment'`)
+  - `required_quantity` (`int` — meta numérica, ex.: `1`, `5`, `10`)
+  - `target_type` (`varchar(30)` — `'any'`, `'category'`, `'neighborhood'`, `'distinct_categories'`, `'distinct_neighborhoods'`)
+  - `target_value` (`varchar(60)` null — slug da categoria ou nome do bairro quando `target_type` for específico)
+  - `is_active` (`boolean`, default `true`)
+  - `updated_at` (`timestamptz`)
 
-| Coluna | Nota |
-|---|---|
-| `id`, `name` UNIQUE, `description`, `icon` (`ACHIEVEMENT_ICONS`), `color` | |
-| `event` | `CHECK IN ('visit','review','create','favorite','streak')` — **sem `follow`** (seguir saiu do produto em 2026-08-17) |
-| `quantity` | `CHECK >= 1` |
-| `target_type` | `category` / `neighborhood` / null |
-| `target` `varchar(60)` | nome da categoria ou do bairro |
-| `active`, `created_at`, `updated_at` | |
-
-  `CHECK ((target_type IS NULL) = (target IS NULL))`: escolher o tipo obriga o alvo.
-
-- [ ] `user_achievements`: PK `(user_id, achievement_id)`, `earned_at`
-  - PK composta é a decisão inteira: conceder é idempotente, e reprocessar o catálogo depois de corrigir um critério é seguro
-- [ ] Filtrar do seed as conquistas de evento `follow` que ainda existem no mock
+### 2. Conquistas do Usuário (`tb_user_achievements`)
+- [ ] Criar tabela `tb_user_achievements` (`UserAchievement`):
+  - PK composta `(user_id, achievement_id)` (FKs para `tb_users` e `tb_achievements` com `ON DELETE CASCADE`).
+  - `unlocked_at` (`timestamptz`, default `now()`).
 
 ---
 
-## ⚙️ Motor de concessão
+## ⚙️ Motor de Concessão (`AchievementEvaluatorService`)
 
-- [ ] `AchievementService.EvaluateAsync(userId, event)`, chamado depois de visita, avaliação, favorito e aprovação de ponto
-- [ ] Para cada conquista ativa do evento: recontar o critério contra `visits`/`reviews`/`favorites`/`places` e, se atingido, `INSERT ... ON CONFLICT DO NOTHING`
-- [ ] Critério `streak` varre `visits` por janela de dias; pode exigir `source = 'gps'`
-- [ ] Execução síncrona no request (volume de TCC); comando `dotnet run -- achievements:reprocess` para recalcular todos após mudança de critério
-- [ ] **Introduzir a camada de serviço** (`Services/`): até aqui controllers falam direto com o `AppDbContext`; a regra de concessão é compartilhada por quatro controllers
+- [ ] Implementar método `EvaluateForUserAsync(Guid userId, AchievementEventType eventType)`:
+  - Busca todas as conquistas ativas daquele `event_type` que o usuário **ainda não possui** em `tb_user_achievements`.
+  - Calcula o contador atual do usuário no banco conforme `(event_type, target_type, target_value)`:
+    - `visit` → conta em `tb_visits` (join com `tb_places` quando filtrar por categoria/bairro).
+    - `review` → conta em `tb_reviews` (`WHERE removed_at IS NULL`).
+    - `favorite` → conta em `tb_favorites`.
+    - `create_place` → conta em `tb_places` (`WHERE status = 'approved'`).
+    - `comment` → conta em `tb_comments` (`WHERE removed_at IS NULL`).
+  - Se `currentProgress >= required_quantity`, insere em `tb_user_achievements` (idempotente pela PK composta).
+- [ ] Disparar `EvaluateForUserAsync` após:
+  - Check-in bem-sucedido (`VisitService`);
+  - Criação de avaliação (`ReviewService`);
+  - Adição de favorito (`FavoriteService`);
+  - Aprovação de local pela moderação (`ModerationService`, para o `author_id` do local);
+  - Criação de comentário (`CommentService`).
 
 ---
 
 ## 🔌 API
 
-| Método | Rota | Acesso | Faz |
+| Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| `GET` | `/api/me/achievements` | autenticado | Obtidas e travadas, com progresso ("3 de 5 cafeterias") |
-| `GET` | `/api/users/{id}/achievements` | anônimo | Só obtidas (perfil público) |
-| `GET` | `/api/admin/achievements` | admin | Catálogo com obtenções e raridade (`obtenções / COUNT(users)`) calculadas |
-| `POST` / `PUT` | `/api/admin/achievements[/{id}]` | admin | Conquista nova é `INSERT`, não deploy |
-| `GET` | `/api/admin/achievements/{id}/estimate` | admin | Quantos usuários já cumpririam o critério (aba de calibragem) |
-
----
-
-## 🖥️ Front
-
-- [ ] `/profile/achievements` e `/admin/achievements` sobre a API
-- [ ] `explorerTitle`/`explorerCredential` recebem a contagem real
-- [ ] Migrar os lugares que ainda mostram "Nível N" (`place-leaderboard`, `verified-comment-card`, `author-card`)
-
-Mocks que saem: `src/mocks/admin-achievements.ts` e a parte de conquistas de `profile.ts`.
+| `GET` | `/api/users/me/achievements` | Autenticado | Lista todas as conquistas ativas com `unlockedAt` (se conquistada) e progresso atual `{ current, required }` para exibir em `/profile/achievements`. |
+| `GET` | `/api/achievements` | Anônimo / Admin | Lista o catálogo completo de conquistas (para Admin, inclui contagem `holdersCount` e percentual `holdersPercentage` sobre o total de exploradores). |
+| `GET` | `/api/achievements/estimate` | `AdminOnly` | Recebe `?eventType=&requiredQuantity=&targetType=&targetValue=` e retorna quantos exploradores atuais cumpririam a regra (preview ao criar/editar conquista em `/admin/achievements`). |
+| `POST` / `PATCH` / `DELETE` | `/api/achievements[/{id:guid}]` | `AdminOnly` | CRUD completo com os novos campos de critério e ícone/cor. |
 
 ---
 
 ## ✅ Verificação
 
-- [ ] A 5ª visita a cafeterias concede "visitar 5 cafeterias" uma vez só
-- [ ] Rodar `achievements:reprocess` duas vezes não duplica nada
-- [ ] Criar conquista com `target_type` e sem `target`: `400` (e o `CHECK` barra no banco)
-- [ ] O título exibido muda ao cruzar 3, 7 e 13 conquistas
+- [ ] Completar a 1ª visita concede automaticamente a conquista de primeira visita e grava em `tb_user_achievements`.
+- [ ] Rodar o avaliador múltiplas vezes para o mesmo usuário nunca duplica conquistas.
+- [ ] `GET /api/users/me/achievements` retorna o progresso parcial exato (ex.: `3/5` cafeterias visitadas) para conquistas ainda bloqueadas.

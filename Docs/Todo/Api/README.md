@@ -1,90 +1,40 @@
-# 🛠️ TODO — roadmap da API
+# 🗺️ TODO da API — Expansão para o Produto Completo
 
-> Caminho definido em **2026-09-15** para a API alimentar o front
-> (`soromaps_web`). Nada aqui está implementado: é a ordem de trabalho e as
-> decisões que a sustentam. Decisões com motivo em [`decisoes.md`](./decisoes.md).
+> **Estado atual da API (Baseline entregue):**
+> - **Arquitetura:** Camadas (`Controllers`, `Services`, `DTOs`, `Mappings`, `Models`, `Data`, `Results`, `Errors`) documentadas nos ADRs [0001](../../ArchitectureDecisionRecords/0001-FundacaoEModuloUsuarios.md), [0002](../../ArchitectureDecisionRecords/0002-ModuloAutenticacaoESessoes.md) e [0003](../../ArchitectureDecisionRecords/0003-ArquiteturaEmCamadas.md).
+> - **Banco de Dados:** 7 tabelas iniciais (`tb_users`, `tb_sessions`, `tb_categories`, `tb_places`, `tb_reviews`, `tb_comments`, `tb_achievements`) com `Guid` (`gen_random_uuid()`), `snake_case`, prefixo `tb_` e Row Level Security (RLS) automático via `RlsMigrationsSqlGenerator`.
+> - **Contrato:** Respostas de erro em `ProblemDetails` com `extensions.code`, enums serializados como string (`JsonStringEnumConverter`) e OpenAPI v3 (`/openapi/v1.json`) pronto para geração de cliente no front-end via Orval.
 
-O front correu à frente do banco de propósito: as telas foram construídas
-inteiras sobre `src/mocks/*` antes de existir schema. Hoje só login, CRUD de
-usuários e `nome`/`lat`/`lng` de ponto usam dado real. A API tem duas tabelas
-(`tbUsuario`, `markers`), nenhum endpoint autenticado, nenhuma migration e três
-formatos de erro diferentes.
-
-Cada fase entrega **migration + endpoint + tela saindo do mock** juntos, e
-deixa o sistema utilizável — nenhuma exige que a seguinte exista.
+Este diretório organiza **tudo o que o front-end (`soromaps_web`) exige e que a API ainda não provê** (ou provê apenas parcialmente na versão enxuta inicial).
 
 ---
 
-## 📐 Convenção de status
+## 📋 Módulos Pendentes na API
 
-| Status | Significado |
-|---|---|
-| 💤 | Não iniciada |
-| 🔨 | Em desenvolvimento |
-| 🟡 | Parcial |
-| ✅ | Entregue |
-
-Regra: concluiu uma fase → atualiza o status aqui e no `.md` dela **na mesma
-entrega**, e registra no `CLAUDE.md` o que mudou de decisão.
-
----
-
-## 🚦 Fases
-
-| # | Fase | Status | Destrava no front | Mock que sai |
+| # | Módulo | Arquivo | Status | Resumo do que falta na API |
 |---|---|---|---|---|
-| 00 | [Fundação](./00-Fundacao.md) | ✅ | Base para tudo: migrations, schemas, seed, config, contrato de erro | — |
-| 01 | [Autenticação](./01-Autenticacao.md) | ✅ | API deixa de ser pública; gate de `/admin` real | — |
-| 02 | [Usuários](./02-Usuarios.md) | 🟡 | `/settings`, papel de admin, perfil | — |
-| 03 | [Lugar e catálogo](./03-LugarECatalogo.md) | 💤 | `/discover`, `/places/*`, `/admin/categories`, fotos | `markers.ts`, `admin-categories.ts` |
-| 04 | [Moderação de ponto](./04-Moderacao.md) | 💤 | `/admin/moderation` | `admin-moderation.ts` |
-| 05 | [Contribuição](./05-Contribuicao.md) | 💤 | `/admin/reviews`, avaliações em `/places/[id]` | `admin-reviews.ts` |
-| 06 | [Atividade](./06-Atividade.md) | 💤 | `/profile/*` | `profile.ts` |
-| 07 | [Gamificação](./07-Gamificacao.md) | 💤 | `/profile/achievements`, `/admin/achievements`, título do explorador | `admin-achievements.ts` |
-| 08 | [Denúncias e feedback](./08-DenunciasEFeedback.md) | 💤 | `/admin/reports` | `admin-reports.ts` |
-| 09 | [Comunidade, feed e pautas](./09-ComunidadeFeedPautas.md) | 💤 | `/community`, `/feed`, `/pautas/[slug]` | `feed.ts`, `community.ts`, `stories.ts` |
-| 10 | [Dashboard](./10-Dashboard.md) | 💤 | `/admin/dashboard` | `admin-dashboard.ts` |
-
-```mermaid
-flowchart LR
-    F0["00 Fundação"] --> F1["01 Auth"] --> F2["02 Usuários"] --> F3["03 Lugar"]
-    F3 --> F4["04 Moderação"]
-    F3 --> F5["05 Contribuição"]
-    F3 --> F6["06 Atividade"]
-    F5 --> F7["07 Gamificação"]
-    F6 --> F7
-    F4 --> F7
-    F5 --> F8["08 Denúncias"]
-    F5 --> F9["09 Comunidade/Feed"]
-    F6 --> F9
-    F7 --> F9
-    F4 --> F10["10 Dashboard"]
-    F5 --> F10
-```
+| 01 | **Seed e Infraestrutura** | [01-SeedEInfraestrutura.md](./01-SeedEInfraestrutura.md) | ✅ | `DatabaseSeeder` (`--seed`), `SupabaseStorageService` (`soromaps_places` / `soromaps_pfps`) e documentação de segredos concluídos. |
+| 02 | **Administração de Usuários** | [02-UsuariosAdmin.md](./02-UsuariosAdmin.md) | ✅ | `PATCH /api/users/{id}`, `DELETE /api/users/{id}`, filtros `role`/`search`, upload de avatar e trava `user.last_admin` entregues. |
+| 03 | **Catálogo, Categorias e Locais** | [03-CatalogoELocais.md](./03-CatalogoELocais.md) | ✅ | `tb_categories` enriquecida, `tb_places` + `tb_place_photos` + `tb_tags` + `tb_place_tags`, médias, filtros `bbox`/`search`/`tag` e upload assinado entregues. |
+| 04 | **Moderação de Locais** | [04-ModeracaoDeLocais.md](./04-ModeracaoDeLocais.md) | ✅ | `tb_moderation_decisions`, fila `/api/admin/moderation/places`, decisão individual e em lote, desfazer 24h e detecção Haversine de duplicatas entregues. |
+| 05 | **Avaliações, Comentários e Moderação** | [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md) | 💤 | Votos de utilidade (`tb_review_useful_votes`), respostas de 1 nível em comentários (`reply_to_id`), listagem global `/api/admin/reviews` com sinais automáticos e remoção auditada (`tb_content_removals`). |
+| 06 | **Atividade do Explorador** | [06-AtividadeDoExplorador.md](./06-AtividadeDoExplorador.md) | 💤 | Check-in de visitas com validação Haversine (`tb_visits`), coleção de favoritos (`tb_favorites`), estatísticas do perfil (`/api/users/me/stats`) e régua de verificação (`/api/users/me/verification`). |
+| 07 | **Motor de Gamificação** | [07-Gamificacao.md](./07-Gamificacao.md) | 💤 | Regras estruturadas em `tb_achievements` (`event`, `quantity`, `target_type`, `target`, `icon`, `color`, `is_active`), tabela `tb_user_achievements`, avaliador idempotente e estimativa de alcance para o admin. |
+| 08 | **Denúncias e Feedback** | [08-DenunciasEFeedback.md](./08-DenunciasEFeedback.md) | 💤 | Tabela polimórfica `tb_reports` agrupada por alvo para `/admin/reports` e tabela `tb_feedback` para envio de sugestões/bugs. |
+| 09 | **Comunidade, Feed e Pautas** | [09-ComunidadeFeedEPautas.md](./09-ComunidadeFeedEPautas.md) | 💤 | Ranking público de exploradores (`/api/community/explorers`), consulta do feed sem grafo social (`/api/feed` + `tb_feed_mutes`) e pautas editoriais/IA (`tb_stories` + `tb_story_places`). |
+| 10 | **Dashboard Administrativo** | [10-DashboardAdmin.md](./10-DashboardAdmin.md) | 💤 | Endpoint agregado `GET /api/admin/stats` (filas de atenção, KPIs de 7/30/90 dias, séries diárias e distribuição por categoria). |
 
 ---
 
-## ⚠️ Alertas abertos
+## 🧭 Convenções para Implementação na API
 
-- [ ] **Trocar a senha do Supabase.** `appsettings.Development.json` foi versionado com ela em texto puro; o arquivo saiu do git, mas a senha continua no histórico. Com a [D13](./decisoes.md#d13--configuração-via-dotnetenv), segredo passa a morar só no `.env`
-- [ ] **Traduzir o modelo de dados para as decisões tomadas.** O `.dbml` de 20 tabelas (`docs/diagramas/modelo-de-dados/`, removido do disco em 2026-09 — recuperável pelo histórico, commit `3dd97fa`) está em pt-BR singular e diz "sem tabela de sessão". Precisa refletir: inglês `snake_case` plural ([D3](./decisoes.md#d3--nomes-inglês-snake_case-no-banco-pascalcase-no-c-camelcase-no-json), [D12](./decisoes.md#d12--tabelas-no-plural)), tabela `sessions` ([D1](./decisoes.md#d1--autenticação-a-api-emite-o-next-cifra)), schemas `soromaps`/`soromaps_dev` ([D5](./decisoes.md#d5--dois-schemas-no-mesmo-projeto-supabase))
-- [ ] **Remover menções ao app Expo** ([D10](./decisoes.md#d10--sem-app-expo)): `CLAUDE.md` do front (stack e backlog), wiki `09-backlog.md` item 30, `CLAUDE.md` desta API
-
----
-
-## 🔗 Fora da API, mas bloqueia
-
-- **`/api/proxy/[...path]` no Next** — P0, o mapa não carrega marcadores em produção. É o que permite remover o CORS ([D11](./decisoes.md#d11--sem-cors)); a contrapartida na API é o `bbox` da [fase 03](./03-lugar-e-catalogo.md)
-
----
-
-## 📚 Referências
-
-| O quê | Onde |
-|---|---|
-| Modelo de dados (20 tabelas, pt-BR) | Histórico git: `git show 3dd97fa:docs/diagramas/modelo-de-dados/00-schema-completo.dbml` |
-| Proposta do ponto (2026-08-03) | `soromaps_web/docs/propostas/2026-08-03-expansao-modelo-ponto.md` |
-| Backlog técnico do produto | `soromaps_web/docs/wiki/09-backlog.md` |
-| Módulos de tela pendentes | `soromaps_web/docs/todo/README.md` |
-| Sessão atual do front | `soromaps_web/src/lib/session.ts`, `src/middleware.ts`, `src/actions/auth.ts` |
-| Contrato de leitura do front | `soromaps_web/src/http/{users,markers}/*.ts` |
+1. **Padrão de Tabelas e Colunas:**
+   - Tabelas no plural em `snake_case` com prefixo `tb_` (configurado automaticamente no `AppDbContext` + `UseSnakeCaseNamingConvention()`).
+   - Chaves primárias `Guid` geradas pelo PostgreSQL (`DEFAULT gen_random_uuid()`), salvo tabelas associativas puras de chave composta.
+   - Row Level Security (RLS) ativado automaticamente na geração da migration via `RlsMigrationsSqlGenerator`.
+2. **Padrão de Camadas (ADR 0003):**
+   - **Controllers:** Apenas transporte HTTP, delegação ao `Service` e retorno via `.ToActionResult(this)` com atributos OpenAPI (`[EndpointName]`, `[EndpointSummary]`, `[ProducesResponseType]`).
+   - **Services:** Regras de negócio retornando `Result` ou `Result<T>` utilizando `DomainErrors`.
+   - **DTOs e Mappings:** `record` imutáveis em `DTOs/` com validação por DataAnnotations e métodos de extensão `.ToDto()` em `Mappings/`.
+3. **Sem dados desnormalizados de contagem/média:**
+   - Nota média, total de avaliações, contagem de locais por categoria e progresso de conquistas são sempre calculados em consulta (`GROUP BY` / projeção EF Core), evitando dessincronização.
