@@ -19,4 +19,6 @@ public class User : IAuditableEntity
     public ICollection<Place> Places { get; set; } = [];
     public ICollection<Review> Reviews { get; set; } = [];
     public ICollection<Comment> Comments { get; set; } = [];
+    public ICollection<PlacePhoto> UploadedPlacePhotos { get; set; } = [];
+    public ICollection<ModerationDecision> ModerationDecisions { get; set; } = [];
 }

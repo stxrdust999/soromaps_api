@@ -44,6 +44,12 @@ public class PlaceConfiguration : IEntityTypeConfiguration<Place>
         builder.Property(place => place.IsPetFriendly)
             .IsRequired();
 
+        builder.Property(place => place.BestTime)
+            .HasMaxLength(100);
+
+        builder.Property(place => place.LocalSecret)
+            .HasMaxLength(300);
+
         builder.Property(place => place.Status)
             .IsRequired()
             .HasConversion<string>()
@@ -59,6 +65,8 @@ public class PlaceConfiguration : IEntityTypeConfiguration<Place>
         builder.HasIndex(place => new { place.Status, place.CreatedAt });
         builder.HasIndex(place => place.CategoryId);
         builder.HasIndex(place => place.AuthorId);
+        builder.HasIndex(place => place.Neighborhood);
+        builder.HasIndex(place => new { place.Latitude, place.Longitude });
 
         builder.HasOne(place => place.Category)
             .WithMany(category => category.Places)

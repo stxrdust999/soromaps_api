@@ -19,8 +19,35 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .IsRequired()
             .HasMaxLength(60);
 
+        builder.Property(category => category.Slug)
+            .IsRequired()
+            .HasMaxLength(60);
+
+        builder.Property(category => category.Icon)
+            .IsRequired()
+            .HasMaxLength(40)
+            .HasDefaultValue("map-pin");
+
+        builder.Property(category => category.Color)
+            .IsRequired()
+            .HasMaxLength(7)
+            .HasDefaultValue("#2563EB");
+
+        builder.Property(category => category.SortOrder)
+            .IsRequired()
+            .HasDefaultValue((short)0);
+
+        builder.Property(category => category.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         builder.HasIndex(category => category.Name)
             .IsUnique();
+
+        builder.HasIndex(category => category.Slug)
+            .IsUnique();
+
+        builder.HasIndex(category => new { category.IsActive, category.SortOrder });
 
         builder.Property(category => category.CreatedAt)
             .HasDefaultValueSql("now()");

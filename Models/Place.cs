@@ -20,10 +20,15 @@ public class Place : IAuditableEntity
     public string Description { get; set; } = string.Empty;
     public bool HasWifi { get; set; }
     public bool IsPetFriendly { get; set; }
+    public string? BestTime { get; set; }
+    public string? LocalSecret { get; set; }
     public PlaceStatus Status { get; set; } = PlaceStatus.Pending;
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     public ICollection<Review> Reviews { get; set; } = [];
+    public ICollection<PlacePhoto> Photos { get; set; } = [];
+    public ICollection<PlaceTag> PlaceTags { get; set; } = [];
+    public ICollection<ModerationDecision> ModerationDecisions { get; set; } = [];
 }
