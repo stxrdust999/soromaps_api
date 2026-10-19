@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using soromaps_api.Constants;
 using soromaps_api.Data;
 using soromaps_api.Data.Interceptors;
+using soromaps_api.Data.Seed;
 using soromaps_api.Options;
 using soromaps_api.Services;
 using soromaps_api.Services.Interfaces;
@@ -45,6 +46,12 @@ public static class ServiceCollectionExtensions
 
         services.AddOptions<AuthOptions>()
             .BindConfiguration(AuthOptions.SectionName);
+
+        services.AddOptions<SeedOptions>()
+            .BindConfiguration(SeedOptions.SectionName);
+
+        services.AddOptions<SupabaseOptions>()
+            .BindConfiguration(SupabaseOptions.SectionName);
 
         return services;
     }
@@ -146,13 +153,17 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddHttpContextAccessor();
+        services.AddHttpClient<ISupabaseStorageService, SupabaseStorageService>();
 
+        services.AddScoped<DatabaseSeeder>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<ITagService, TagService>();
         services.AddScoped<IPlaceService, PlaceService>();
+        services.AddScoped<IModerationService, ModerationService>();
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<IAchievementService, AchievementService>();
