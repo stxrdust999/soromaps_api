@@ -1,42 +1,62 @@
 using System.Linq.Expressions;
+using soromaps_api.DTOs.Categories;
 using soromaps_api.DTOs.Common;
 using soromaps_api.DTOs.Places;
+using soromaps_api.DTOs.Tags;
 using soromaps_api.Models;
 
 namespace soromaps_api.Mappings;
 
-/**
- * Utilitários de transformação entre entidade Place e seus respectivos DTOs.
- * Fornece expressões de projeção para o EF Core e métodos de extensão para objetos em memória.
- */
 public static class PlaceMappings
 {
-    /**
-     * Expressão de projeção de resumo para listagens de mapa.
-     * Gera uma query SQL trazendo apenas as colunas estritamente necessárias para plotar marcadores,
-     * economizando memória do servidor e tráfego de rede ao ignorar descrições longas.
-     */
     public static readonly Expression<Func<Place, PlaceSummaryDto>> ToSummaryProjection = place =>
         new PlaceSummaryDto(
             place.Id,
             place.CategoryId,
+            new CategorySummaryDto(
+                place.Category.Id,
+                place.Category.Name,
+                place.Category.Slug,
+                place.Category.Icon,
+                place.Category.Color
+            ),
             place.Name,
             place.Latitude,
             place.Longitude,
             place.Neighborhood,
+            place.About,
             place.HasWifi,
             place.IsPetFriendly,
+            place.Reviews.Average(review => (double?)review.Rating) ?? 0.0,
+            place.Reviews.Count,
+            place.Photos
+                .OrderByDescending(photo => photo.IsCover)
+                .ThenBy(photo => photo.CreatedAt)
+                .Select(photo => photo.Url)
+                .FirstOrDefault(),
+            place.PlaceTags
+                .Select(placeTag => new TagResponseDto(
+                    placeTag.Tag.Id,
+                    placeTag.Tag.Name,
+                    placeTag.Tag.Slug,
+                    placeTag.Tag.CreatedAt
+                ))
+                .ToList(),
             place.Status,
             place.CreatedAt
         );
 
-    /**
-     * Expressão de projeção completa para consulta de detalhes de local.
-     */
     public static readonly Expression<Func<Place, PlaceResponseDto>> ToResponseProjection = place =>
         new PlaceResponseDto(
             place.Id,
             place.CategoryId,
+            new CategorySummaryDto(
+                place.Category.Id,
+                place.Category.Name,
+                place.Category.Slug,
+                place.Category.Icon,
+                place.Category.Color
+            ),
             place.Author == null ? null : new AuthorSummaryDto(place.Author.Id, place.Author.Name, place.Author.AvatarUrl),
             place.Name,
             place.Latitude,
@@ -46,35 +66,48 @@ public static class PlaceMappings
             place.Description,
             place.HasWifi,
             place.IsPetFriendly,
+            place.BestTime,
+            place.LocalSecret,
+            place.Reviews.Average(review => (double?)review.Rating) ?? 0.0,
+            place.Reviews.Count,
+            place.Photos
+                .OrderByDescending(photo => photo.IsCover)
+                .ThenBy(photo => photo.CreatedAt)
+                .Select(photo => photo.Url)
+                .FirstOrDefault(),
+            place.Photos
+                .OrderByDescending(photo => photo.IsCover)
+                .ThenBy(photo => photo.CreatedAt)
+                .Select(photo => new PlacePhotoResponseDto(
+                    photo.Id,
+                    photo.Url,
+                    photo.StoragePath,
+                    photo.IsCover,
+                    photo.CreatedAt
+                ))
+                .ToList(),
+            place.PlaceTags
+                .Select(placeTag => new TagResponseDto(
+                    placeTag.Tag.Id,
+                    placeTag.Tag.Name,
+                    placeTag.Tag.Slug,
+                    placeTag.Tag.CreatedAt
+                ))
+                .ToList(),
             place.Status,
             place.CreatedAt,
             place.UpdatedAt
         );
 
-    /**
-     * Mapeia uma entidade Place carregada em memória para o seu DTO de resposta detalhado.
-     */
-    public static PlaceResponseDto ToResponse(this Place place) =>
+    public static PlacePhotoResponseDto ToResponse(this PlacePhoto photo) =>
         new(
-            place.Id,
-            place.CategoryId,
-            place.Author == null ? null : new AuthorSummaryDto(place.Author.Id, place.Author.Name, place.Author.AvatarUrl),
-            place.Name,
-            place.Latitude,
-            place.Longitude,
-            place.Neighborhood,
-            place.About,
-            place.Description,
-            place.HasWifi,
-            place.IsPetFriendly,
-            place.Status,
-            place.CreatedAt,
-            place.UpdatedAt
+            photo.Id,
+            photo.Url,
+            photo.StoragePath,
+            photo.IsCover,
+            photo.CreatedAt
         );
 
-    /**
-     * Aplica alterações parciais vindas de um DTO de update, ignorando campos nulos.
-     */
     public static void ApplyUpdate(this Place place, UpdatePlaceDto request)
     {
         if (request.CategoryId.HasValue)
@@ -103,5 +136,11 @@ public static class PlaceMappings
 
         if (request.IsPetFriendly.HasValue)
             place.IsPetFriendly = request.IsPetFriendly.Value;
+
+        if (request.BestTime is not null)
+            place.BestTime = string.IsNullOrWhiteSpace(request.BestTime) ? null : request.BestTime.Trim();
+
+        if (request.LocalSecret is not null)
+            place.LocalSecret = string.IsNullOrWhiteSpace(request.LocalSecret) ? null : request.LocalSecret.Trim();
     }
 }

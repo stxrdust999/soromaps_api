@@ -7,38 +7,30 @@ using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Controllers;
 
-/**
- * Controller responsável pelos pontos de interesse e locais no mapa.
- * Expõe busca pública de pontos aprovados, submissão de locais e moderação exclusiva para administradores.
- */
+[ApiController]
+[Route("api/places")]
 public class PlacesController(IPlaceService placeService) : ApiControllerBase
 {
-    /**
-     * Lista lugares aprovados de forma paginada para o mapa.
-     * Suporta filtro opcional por categoria.
-     */
     [HttpGet]
     [AllowAnonymous]
     [EndpointName("listPlaces")]
-    [EndpointSummary("Lista todos os lugares aprovados de forma paginada")]
+    [EndpointSummary("Lista todos os lugares aprovados com suporte a filtros espaciais (bbox), categoria, tag, bairro e busca")]
     [ProducesResponseType(typeof(PagedResponseDto<PlaceSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponseDto<PlaceSummaryDto>>> List(
         [FromQuery] PaginationQueryDto pagination,
-        [FromQuery] Guid? categoryId,
+        [FromQuery] PlaceListQueryDto filter,
         CancellationToken cancellationToken)
     {
-        var result = await placeService.ListApprovedAsync(pagination, categoryId, cancellationToken);
+        var result = await placeService.ListApprovedAsync(pagination, filter, cancellationToken);
 
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Obtém os detalhes completos de um lugar pelo seu ID.
-     */
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [EndpointName("getPlaceById")]
-    [EndpointSummary("Busca um lugar pelo ID")]
+    [EndpointSummary("Busca os detalhes completos de um lugar pelo ID")]
     [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PlaceResponseDto>> GetById(Guid id, CancellationToken cancellationToken)
@@ -48,13 +40,10 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Cadastra uma nova sugestão de lugar no mapa (inicia como 'Pending').
-     */
     [HttpPost]
     [Authorize]
     [EndpointName("createPlace")]
-    [EndpointSummary("Cadastra um novo lugar")]
+    [EndpointSummary("Cadastra uma nova sugestão de lugar (nasce com status 'Pending')")]
     [ProducesResponseType(typeof(PlaceResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -68,9 +57,6 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
     }
 
-    /**
-     * Atualiza dados de um lugar existente (restrito ao autor ou administrador).
-     */
     [HttpPatch("{id:guid}")]
     [Authorize]
     [EndpointName("updatePlace")]
@@ -87,9 +73,6 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Altera o status de moderação do local (exclusivo para Administradores).
-     */
     [HttpPatch("{id:guid}/status")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [EndpointName("updatePlaceStatus")]
@@ -106,9 +89,6 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Exclui um lugar do sistema (restrito ao autor ou administrador).
-     */
     [HttpDelete("{id:guid}")]
     [Authorize]
     [EndpointName("deletePlace")]
@@ -120,6 +100,83 @@ public class PlacesController(IPlaceService placeService) : ApiControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var result = await placeService.DeleteAsync(id, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
+    }
+
+    [HttpPost("{id:guid}/photos/upload-url")]
+    [Authorize]
+    [EndpointName("createPlacePhotoUploadUrl")]
+    [EndpointSummary("Gera uma URL assinada para upload de foto do lugar no Supabase Storage")]
+    [ProducesResponseType(typeof(SignedUploadUrlDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SignedUploadUrlDto>> CreatePhotoUploadUrl(
+        Guid id,
+        [FromBody] CreateUploadUrlRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await placeService.CreatePhotoUploadUrlAsync(id, request, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    [HttpPost("{id:guid}/photos")]
+    [Authorize]
+    [EndpointName("addPlacePhoto")]
+    [EndpointSummary("Registra uma foto enviada para o lugar")]
+    [ProducesResponseType(typeof(PlacePhotoResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlacePhotoResponseDto>> AddPhoto(
+        Guid id,
+        [FromBody] ConfirmPlacePhotoDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await placeService.AddPhotoAsync(id, request, cancellationToken);
+
+        if (result.IsFailure)
+            return HandleFailure(result.Error!);
+
+        return StatusCode(StatusCodes.Status201Created, result.Value);
+    }
+
+    [HttpPatch("{id:guid}/photos/{photoId:guid}/cover")]
+    [Authorize]
+    [EndpointName("setPlaceCoverPhoto")]
+    [EndpointSummary("Define uma foto existente como capa do lugar")]
+    [ProducesResponseType(typeof(PlacePhotoResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PlacePhotoResponseDto>> SetCoverPhoto(
+        Guid id,
+        Guid photoId,
+        CancellationToken cancellationToken)
+    {
+        var result = await placeService.SetCoverPhotoAsync(id, photoId, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    [HttpDelete("{id:guid}/photos/{photoId:guid}")]
+    [Authorize]
+    [EndpointName("deletePlacePhoto")]
+    [EndpointSummary("Remove uma foto do lugar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePhoto(
+        Guid id,
+        Guid photoId,
+        CancellationToken cancellationToken)
+    {
+        var result = await placeService.DeletePhotoAsync(id, photoId, cancellationToken);
 
         return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }

@@ -30,5 +30,13 @@ public sealed record CreatePlaceDto(
 
     bool HasWifi,
 
-    bool IsPetFriendly
+    bool IsPetFriendly,
+
+    [MaxLength(100, ErrorMessage = "place.best_time_too_long")]
+    string? BestTime = null,
+
+    [MaxLength(300, ErrorMessage = "place.local_secret_too_long")]
+    string? LocalSecret = null,
+
+    IReadOnlyList<Guid>? TagIds = null
 );

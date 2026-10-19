@@ -1,4 +1,6 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using soromaps_api.Data;
 using soromaps_api.DTOs.Common;
 using soromaps_api.DTOs.Places;
@@ -7,81 +9,122 @@ using soromaps_api.Extensions;
 using soromaps_api.Mappings;
 using soromaps_api.Models;
 using soromaps_api.Models.Enums;
+using soromaps_api.Options;
 using soromaps_api.Results;
 using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Services;
 
-/**
- * Serviço responsável por regras de negócio e persistência de locais/pontos no mapa.
- * Garante filtros de moderação, checagem de autor (IDOR) e paginação eficiente.
- */
-public sealed class PlaceService(AppDbContext context, ICurrentUserService currentUser) : IPlaceService
+public sealed class PlaceService(
+    AppDbContext context,
+    ICurrentUserService currentUser,
+    ISupabaseStorageService storageService,
+    IOptions<SupabaseOptions> supabaseOptions) : IPlaceService
 {
-    /**
-     * Retorna a listagem paginada de lugares públicos com status 'Approved'.
-     * Utiliza projeção estática para carregar apenas os campos necessários na view do mapa.
-     */
     public async Task<Result<PagedResponseDto<PlaceSummaryDto>>> ListApprovedAsync(
         PaginationQueryDto pagination,
-        Guid? categoryId = null,
+        PlaceListQueryDto filter,
         CancellationToken cancellationToken = default)
     {
-        /** Filtra inicialmente apenas lugares aprovados para o mapa público. */
         var query = context.Places
             .AsNoTracking()
             .Where(place => place.Status == PlaceStatus.Approved);
 
-        /** Aplica filtro opcional por categoria sem reexecutar query antecipadamente. */
-        if (categoryId.HasValue)
-            query = query.Where(place => place.CategoryId == categoryId.Value);
+        if (filter.CategoryId.HasValue)
+            query = query.Where(place => place.CategoryId == filter.CategoryId.Value);
 
-        /** Ordena pelos mais recentes e executa contagem e slice paginado via extension. */
-        return await query
-            .OrderByDescending(place => place.CreatedAt)
+        if (!string.IsNullOrWhiteSpace(filter.CategorySlug))
+        {
+            var categorySlug = filter.CategorySlug.Trim().ToLowerInvariant();
+            query = query.Where(place => place.Category.Slug == categorySlug);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TagSlug))
+        {
+            var tagSlug = filter.TagSlug.Trim().ToLowerInvariant();
+            query = query.Where(place => place.PlaceTags.Any(placeTag => placeTag.Tag.Slug == tagSlug));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Neighborhood))
+        {
+            var neighborhood = filter.Neighborhood.Trim();
+            query = query.Where(place => EF.Functions.ILike(place.Neighborhood, neighborhood));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var pattern = $"%{filter.Search.Trim()}%";
+            query = query.Where(place =>
+                EF.Functions.ILike(place.Name, pattern) ||
+                EF.Functions.ILike(place.About, pattern) ||
+                EF.Functions.ILike(place.Neighborhood, pattern));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Bbox))
+        {
+            if (!TryParseBoundingBox(filter.Bbox, out var minLng, out var minLat, out var maxLng, out var maxLat))
+                return PlaceErrors.InvalidBoundingBox;
+
+            query = query.Where(place =>
+                place.Longitude >= minLng &&
+                place.Longitude <= maxLng &&
+                place.Latitude >= minLat &&
+                place.Latitude <= maxLat);
+        }
+
+        var sortedQuery = (filter.Sort?.ToLowerInvariant()) switch
+        {
+            "rating" => query
+                .OrderByDescending(place => place.Reviews.Average(review => (double?)review.Rating) ?? 0.0)
+                .ThenByDescending(place => place.Reviews.Count),
+            "reviews" => query
+                .OrderByDescending(place => place.Reviews.Count)
+                .ThenByDescending(place => place.CreatedAt),
+            _ => query.OrderByDescending(place => place.CreatedAt)
+        };
+
+        return await sortedQuery
             .Select(PlaceMappings.ToSummaryProjection)
             .ToPagedResponseAsync(pagination, cancellationToken);
     }
 
-    /**
-     * Busca os detalhes completos de um lugar pelo seu identificador.
-     * Lugares não aprovados só podem ser visualizados pelo seu próprio autor ou por administradores.
-     */
     public async Task<Result<PlaceResponseDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        /** Carrega o lugar e inclui os dados básicos do autor para retorno. */
-        var place = await context.Places
+        var placeMeta = await context.Places
             .AsNoTracking()
-            .Include(existingPlace => existingPlace.Author)
-            .SingleOrDefaultAsync(existingPlace => existingPlace.Id == id, cancellationToken);
+            .Where(existingPlace => existingPlace.Id == id)
+            .Select(existingPlace => new { existingPlace.Id, existingPlace.Status, existingPlace.AuthorId })
+            .SingleOrDefaultAsync(cancellationToken);
 
-        if (place is null)
+        if (placeMeta is null)
             return PlaceErrors.NotFound;
 
-        /** Verifica privilégios para exibição de lugares em moderação/pendentes. */
-        var isAuthor = currentUser.IsAuthenticated && place.AuthorId == currentUser.UserId;
+        var isAuthor = currentUser.IsAuthenticated && placeMeta.AuthorId == currentUser.UserId;
         var isAdmin = currentUser.IsInRole(UserRole.Admin);
 
-        if (place.Status != PlaceStatus.Approved && !isAuthor && !isAdmin)
+        if (placeMeta.Status != PlaceStatus.Approved && !isAuthor && !isAdmin)
             return PlaceErrors.NotFound;
 
-        return place.ToResponse();
+        var response = await context.Places
+            .AsNoTracking()
+            .Where(existingPlace => existingPlace.Id == id)
+            .Select(PlaceMappings.ToResponseProjection)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (response is null)
+            return PlaceErrors.NotFound;
+
+        return response;
     }
 
-    /**
-     * Cadastra uma nova sugestão de local vinculado ao usuário autenticado.
-     * O local nasce com status 'Pending' até aprovação pela equipe de moderação/administração.
-     */
     public async Task<Result<PlaceResponseDto>> CreateAsync(CreatePlaceDto request, CancellationToken cancellationToken = default)
     {
-        /** Valida se a categoria indicada existe antes de vincular a chave estrangeira. */
         var categoryExists = await context.Categories
-            .AnyAsync(category => category.Id == request.CategoryId, cancellationToken);
+            .AnyAsync(category => category.Id == request.CategoryId && category.IsActive, cancellationToken);
 
         if (!categoryExists)
             return PlaceErrors.CategoryNotFound;
 
-        /** Instancia a entidade associando o autor a partir dos claims do JWT. */
         var place = new Place
         {
             CategoryId = request.CategoryId,
@@ -94,40 +137,51 @@ public sealed class PlaceService(AppDbContext context, ICurrentUserService curre
             Description = request.Description.Trim(),
             HasWifi = request.HasWifi,
             IsPetFriendly = request.IsPetFriendly,
+            BestTime = string.IsNullOrWhiteSpace(request.BestTime) ? null : request.BestTime.Trim(),
+            LocalSecret = string.IsNullOrWhiteSpace(request.LocalSecret) ? null : request.LocalSecret.Trim(),
             Status = PlaceStatus.Pending
         };
 
         context.Places.Add(place);
         await context.SaveChangesAsync(cancellationToken);
 
-        /** Carrega a navegação do autor recém-associado para montar o DTO de resposta. */
-        await context.Entry(place).Reference(p => p.Author).LoadAsync(cancellationToken);
+        if (request.TagIds is { Count: > 0 })
+        {
+            var validTagIds = await context.Tags
+                .Where(tag => request.TagIds.Contains(tag.Id))
+                .Select(tag => tag.Id)
+                .ToListAsync(cancellationToken);
 
-        return place.ToResponse();
+            foreach (var tagId in validTagIds.Distinct())
+            {
+                context.PlaceTags.Add(new PlaceTag
+                {
+                    PlaceId = place.Id,
+                    TagId = tagId
+                });
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        return await GetByIdAsync(place.Id, cancellationToken);
     }
 
-    /**
-     * Atualiza dados cadastrais de um lugar existente.
-     * Impede mutação por outros usuários e mantém o status aprovado inalterado.
-     */
     public async Task<Result<PlaceResponseDto>> UpdateAsync(Guid id, UpdatePlaceDto request, CancellationToken cancellationToken = default)
     {
-        /** Carrega o lugar do banco rastreado para atualização. */
         var place = await context.Places
-            .Include(existingPlace => existingPlace.Author)
+            .Include(existingPlace => existingPlace.PlaceTags)
             .SingleOrDefaultAsync(existingPlace => existingPlace.Id == id, cancellationToken);
 
         if (place is null)
             return PlaceErrors.NotFound;
 
-        /** Garante que apenas o autor original ou um administrador possam editar. */
         var isOwner = place.AuthorId == currentUser.UserId;
         var isAdmin = currentUser.IsInRole(UserRole.Admin);
 
         if (!isOwner && !isAdmin)
             return PlaceErrors.NotOwner;
 
-        /** Se houver troca de categoria, valida a existência da nova categoria. */
         if (request.CategoryId.HasValue)
         {
             var categoryExists = await context.Categories
@@ -137,55 +191,247 @@ public sealed class PlaceService(AppDbContext context, ICurrentUserService curre
                 return PlaceErrors.CategoryNotFound;
         }
 
-        /** Aplica as alterações parciais mantendo o status de aprovação intacto. */
         place.ApplyUpdate(request);
+
+        if (isOwner && !isAdmin && place.Status == PlaceStatus.Returned)
+            place.Status = PlaceStatus.Pending;
+
+        if (request.TagIds is not null)
+        {
+            var validTagIds = await context.Tags
+                .Where(tag => request.TagIds.Contains(tag.Id))
+                .Select(tag => tag.Id)
+                .ToListAsync(cancellationToken);
+
+            context.PlaceTags.RemoveRange(place.PlaceTags);
+
+            foreach (var tagId in validTagIds.Distinct())
+            {
+                context.PlaceTags.Add(new PlaceTag
+                {
+                    PlaceId = place.Id,
+                    TagId = tagId
+                });
+            }
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
-        return place.ToResponse();
+        return await GetByIdAsync(place.Id, cancellationToken);
     }
 
-    /**
-     * Atualiza o status de aprovação de um local na fila de moderação.
-     * Ação restrita a administradores.
-     */
     public async Task<Result<PlaceResponseDto>> UpdateStatusAsync(Guid id, UpdatePlaceStatusDto request, CancellationToken cancellationToken = default)
     {
         var place = await context.Places
-            .Include(existingPlace => existingPlace.Author)
             .SingleOrDefaultAsync(existingPlace => existingPlace.Id == id, cancellationToken);
 
         if (place is null)
             return PlaceErrors.NotFound;
 
-        /** Define o novo status deliberado pelo administrador. */
+        var previousStatus = place.Status;
         place.Status = request.Status;
+
+        context.ModerationDecisions.Add(new ModerationDecision
+        {
+            PlaceId = place.Id,
+            ModeratorId = currentUser.UserId,
+            PreviousStatus = previousStatus,
+            Decision = request.Status
+        });
+
         await context.SaveChangesAsync(cancellationToken);
 
-        return place.ToResponse();
+        return await GetByIdAsync(place.Id, cancellationToken);
     }
 
-    /**
-     * Remove um local do catálogo.
-     * Ação permitida apenas ao autor original ou a administradores.
-     */
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var place = await context.Places
+            .Include(existingPlace => existingPlace.Photos)
             .SingleOrDefaultAsync(existingPlace => existingPlace.Id == id, cancellationToken);
 
         if (place is null)
             return PlaceErrors.NotFound;
 
-        /** Bloqueia exclusão por usuários terceiros. */
         var isOwner = place.AuthorId == currentUser.UserId;
         var isAdmin = currentUser.IsInRole(UserRole.Admin);
 
         if (!isOwner && !isAdmin)
             return PlaceErrors.NotOwner;
 
+        var storagePathsToDelete = place.Photos
+            .Where(photo => !string.IsNullOrWhiteSpace(photo.StoragePath))
+            .Select(photo => photo.StoragePath!)
+            .ToList();
+
         context.Places.Remove(place);
         await context.SaveChangesAsync(cancellationToken);
 
+        foreach (var storagePath in storagePathsToDelete)
+            await storageService.DeleteObjectAsync(supabaseOptions.Value.PlacesBucket, storagePath, cancellationToken);
+
         return Result.Success();
+    }
+
+    public async Task<Result<SignedUploadUrlDto>> CreatePhotoUploadUrlAsync(
+        Guid placeId,
+        CreateUploadUrlRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var place = await context.Places
+            .AsNoTracking()
+            .SingleOrDefaultAsync(existingPlace => existingPlace.Id == placeId, cancellationToken);
+
+        if (place is null)
+            return PlaceErrors.NotFound;
+
+        var isOwner = place.AuthorId == currentUser.UserId;
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+
+        if (!isOwner && !isAdmin)
+            return PlaceErrors.NotOwner;
+
+        return await storageService.CreatePlacePhotoUploadUrlAsync(placeId, request.FileExtension, cancellationToken);
+    }
+
+    public async Task<Result<PlacePhotoResponseDto>> AddPhotoAsync(
+        Guid placeId,
+        ConfirmPlacePhotoDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var place = await context.Places
+            .Include(existingPlace => existingPlace.Photos)
+            .SingleOrDefaultAsync(existingPlace => existingPlace.Id == placeId, cancellationToken);
+
+        if (place is null)
+            return PlaceErrors.NotFound;
+
+        var isOwner = place.AuthorId == currentUser.UserId;
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+
+        if (!isOwner && !isAdmin)
+            return PlaceErrors.NotOwner;
+
+        var shouldBeCover = request.IsCover || place.Photos.Count == 0;
+
+        if (shouldBeCover)
+        {
+            foreach (var existingPhoto in place.Photos.Where(photo => photo.IsCover))
+                existingPhoto.IsCover = false;
+        }
+
+        var photo = new PlacePhoto
+        {
+            PlaceId = placeId,
+            UploadedById = currentUser.UserId,
+            Url = request.Url.Trim(),
+            StoragePath = string.IsNullOrWhiteSpace(request.StoragePath) ? null : request.StoragePath.Trim(),
+            IsCover = shouldBeCover
+        };
+
+        context.PlacePhotos.Add(photo);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return photo.ToResponse();
+    }
+
+    public async Task<Result<PlacePhotoResponseDto>> SetCoverPhotoAsync(
+        Guid placeId,
+        Guid photoId,
+        CancellationToken cancellationToken = default)
+    {
+        var place = await context.Places
+            .Include(existingPlace => existingPlace.Photos)
+            .SingleOrDefaultAsync(existingPlace => existingPlace.Id == placeId, cancellationToken);
+
+        if (place is null)
+            return PlaceErrors.NotFound;
+
+        var isOwner = place.AuthorId == currentUser.UserId;
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+
+        if (!isOwner && !isAdmin)
+            return PlaceErrors.NotOwner;
+
+        var targetPhoto = place.Photos.FirstOrDefault(photo => photo.Id == photoId);
+        if (targetPhoto is null)
+            return PlaceErrors.PhotoNotFound;
+
+        foreach (var photo in place.Photos)
+            photo.IsCover = photo.Id == photoId;
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        return targetPhoto.ToResponse();
+    }
+
+    public async Task<Result> DeletePhotoAsync(
+        Guid placeId,
+        Guid photoId,
+        CancellationToken cancellationToken = default)
+    {
+        var place = await context.Places
+            .Include(existingPlace => existingPlace.Photos)
+            .SingleOrDefaultAsync(existingPlace => existingPlace.Id == placeId, cancellationToken);
+
+        if (place is null)
+            return PlaceErrors.NotFound;
+
+        var isOwner = place.AuthorId == currentUser.UserId;
+        var isAdmin = currentUser.IsInRole(UserRole.Admin);
+
+        if (!isOwner && !isAdmin)
+            return PlaceErrors.NotOwner;
+
+        var targetPhoto = place.Photos.FirstOrDefault(photo => photo.Id == photoId);
+        if (targetPhoto is null)
+            return PlaceErrors.PhotoNotFound;
+
+        var wasCover = targetPhoto.IsCover;
+        var storagePath = targetPhoto.StoragePath;
+
+        context.PlacePhotos.Remove(targetPhoto);
+
+        if (wasCover)
+        {
+            var nextCover = place.Photos
+                .Where(photo => photo.Id != photoId)
+                .OrderBy(photo => photo.CreatedAt)
+                .FirstOrDefault();
+
+            if (nextCover is not null)
+                nextCover.IsCover = true;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(storagePath))
+            await storageService.DeleteObjectAsync(supabaseOptions.Value.PlacesBucket, storagePath, cancellationToken);
+
+        return Result.Success();
+    }
+
+    private static bool TryParseBoundingBox(
+        string bbox,
+        out double minLng,
+        out double minLat,
+        out double maxLng,
+        out double maxLat)
+    {
+        minLng = minLat = maxLng = maxLat = 0;
+
+        var parts = bbox.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 4)
+            return false;
+
+        if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out minLng) ||
+            !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out minLat) ||
+            !double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out maxLng) ||
+            !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out maxLat))
+        {
+            return false;
+        }
+
+        return minLng <= maxLng && minLat <= maxLat;
     }
 }
