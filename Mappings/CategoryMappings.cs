@@ -1,47 +1,74 @@
 using System.Linq.Expressions;
 using soromaps_api.DTOs.Categories;
+using soromaps_api.Extensions;
 using soromaps_api.Models;
+using soromaps_api.Models.Enums;
 
 namespace soromaps_api.Mappings;
 
-/**
- * Utilitários de transformação entre a entidade Category e seus DTOs.
- * Fornece expressões de projeção para o EF Core traduzir em SQL e métodos de extensão para objetos em memória.
- */
 public static class CategoryMappings
 {
-    /**
-     * Expressão de projeção otimizada para listagem e consulta de categorias.
-     * Gera uma query SQL trazendo estritamente as colunas do DTO, ignorando coleções de navegação (como Places)
-     * e evitando o carregamento desnecessário do grafo de dependências pelo ChangeTracker.
-     */
-    public static readonly Expression<Func<Category, CategoryResponseDto>> ToResponseProjection = category =>
-        new CategoryResponseDto(
+    public static Expression<Func<Category, CategoryResponseDto>> ToResponseProjection(DateTime oneWeekAgoUtc) =>
+        category => new CategoryResponseDto(
             category.Id,
             category.Name,
+            category.Slug,
+            category.Icon,
+            category.Color,
+            category.SortOrder,
+            category.IsActive,
+            category.Places.Count(place => place.Status == PlaceStatus.Approved),
+            category.Places.Count(place => place.Status == PlaceStatus.Approved && place.CreatedAt >= oneWeekAgoUtc),
             category.CreatedAt,
             category.UpdatedAt
         );
 
-    /**
-     * Converte uma entidade Category carregada na memória para o DTO de resposta.
-     * Usado após operações de criação ou edição direta via CategoryService.
-     */
-    public static CategoryResponseDto ToResponse(this Category category) =>
+    public static CategorySummaryDto ToSummary(this Category category) =>
         new(
             category.Id,
             category.Name,
+            category.Slug,
+            category.Icon,
+            category.Color
+        );
+
+    public static CategoryResponseDto ToResponse(this Category category, int placesCount = 0, int newPlacesThisWeekCount = 0) =>
+        new(
+            category.Id,
+            category.Name,
+            category.Slug,
+            category.Icon,
+            category.Color,
+            category.SortOrder,
+            category.IsActive,
+            placesCount,
+            newPlacesThisWeekCount,
             category.CreatedAt,
             category.UpdatedAt
         );
 
-    /**
-     * Aplica alterações parciais vindas de UpdateCategoryDto sobre a entidade rastreada,
-     * atualizando apenas os campos preenchidos e sanitizando espaços em branco.
-     */
     public static void ApplyUpdate(this Category category, UpdateCategoryDto request)
     {
         if (request.Name is not null)
+        {
             category.Name = request.Name.Trim();
+            if (request.Slug is null)
+                category.Slug = SlugHelper.GenerateSlug(category.Name);
+        }
+
+        if (request.Slug is not null)
+            category.Slug = SlugHelper.GenerateSlug(request.Slug);
+
+        if (request.Icon is not null)
+            category.Icon = request.Icon.Trim();
+
+        if (request.Color is not null)
+            category.Color = request.Color.Trim().ToUpperInvariant();
+
+        if (request.SortOrder.HasValue)
+            category.SortOrder = request.SortOrder.Value;
+
+        if (request.IsActive.HasValue)
+            category.IsActive = request.IsActive.Value;
     }
 }

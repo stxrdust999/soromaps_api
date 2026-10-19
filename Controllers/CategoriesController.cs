@@ -7,30 +7,25 @@ using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Controllers;
 
-/**
- * Controller responsável pelas rotas de categorias de lugares.
- * Permite leitura pública e restringe criação/atualização/remoção a Administradores.
- */
+[ApiController]
+[Route("api/categories")]
 public class CategoriesController(ICategoryService categoryService) : ApiControllerBase
 {
-    /**
-     * Lista todas as categorias com paginação e ordenação alfabética.
-     */
     [HttpGet]
     [AllowAnonymous]
     [EndpointName("listCategories")]
-    [EndpointSummary("Lista todas as categorias de forma paginada")]
+    [EndpointSummary("Lista todas as categorias de forma paginada e ordenada")]
     [ProducesResponseType(typeof(PagedResponseDto<CategoryResponseDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PagedResponseDto<CategoryResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResponseDto<CategoryResponseDto>>> List(
+        [FromQuery] PaginationQueryDto pagination,
+        [FromQuery] bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
-        var result = await categoryService.ListAsync(pagination, cancellationToken);
+        var result = await categoryService.ListAsync(pagination, includeInactive, cancellationToken);
 
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Busca detalhes de uma categoria por ID.
-     */
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [EndpointName("getCategoryById")]
@@ -44,9 +39,6 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Cadastra uma nova categoria no sistema (restrito a Administradores).
-     */
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [EndpointName("createCategory")]
@@ -66,9 +58,6 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
         return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
     }
 
-    /**
-     * Atualiza o nome de uma categoria (restrito a Administradores).
-     */
     [HttpPatch("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [EndpointName("updateCategory")]
@@ -78,6 +67,7 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<CategoryResponseDto>> Update(Guid id, [FromBody] UpdateCategoryDto request, CancellationToken cancellationToken)
     {
         var result = await categoryService.UpdateAsync(id, request, cancellationToken);
@@ -85,21 +75,37 @@ public class CategoriesController(ICategoryService categoryService) : ApiControl
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Remove uma categoria se não possuir lugares vinculados (restrito a Administradores).
-     */
+    [HttpPatch("order")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("reorderCategories")]
+    [EndpointSummary("Reordena as categorias no catálogo (Administrador)")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Reorder([FromBody] ReorderCategoriesDto request, CancellationToken cancellationToken)
+    {
+        var result = await categoryService.ReorderAsync(request, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [EndpointName("deleteCategory")]
-    [EndpointSummary("Remove uma categoria (Administrador)")]
+    [EndpointSummary("Remove uma categoria com opção de reatribuir seus locais (Administrador)")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(
+        Guid id,
+        [FromQuery] Guid? reassignTo = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await categoryService.DeleteAsync(id, cancellationToken);
+        var result = await categoryService.DeleteAsync(id, reassignTo, cancellationToken);
 
         return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }

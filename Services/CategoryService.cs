@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using soromaps_api.Data;
 using soromaps_api.DTOs.Categories;
 using soromaps_api.DTOs.Common;
@@ -6,38 +7,45 @@ using soromaps_api.Errors;
 using soromaps_api.Extensions;
 using soromaps_api.Mappings;
 using soromaps_api.Models;
+using soromaps_api.Models.Enums;
 using soromaps_api.Results;
 using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Services;
 
-/**
- * Serviço responsável pela gestão do catálogo de categorias de lugares.
- * Controla unicidade de nomenclatura e proteção contra exclusão com dependências órfãs.
- */
-public sealed class CategoryService(AppDbContext context) : ICategoryService
+public sealed class CategoryService(
+    AppDbContext context,
+    ICurrentUserService currentUser,
+    TimeProvider timeProvider) : ICategoryService
 {
-    /**
-     * Lista todas as categorias de forma paginada e ordenada por nome.
-     */
-    public async Task<Result<PagedResponseDto<CategoryResponseDto>>> ListAsync(PaginationQueryDto pagination, CancellationToken cancellationToken = default)
+    public async Task<Result<PagedResponseDto<CategoryResponseDto>>> ListAsync(
+        PaginationQueryDto pagination,
+        bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
-        return await context.Categories
-            .AsNoTracking()
-            .OrderBy(category => category.Name)
-            .Select(CategoryMappings.ToResponseProjection)
+        var query = context.Categories.AsNoTracking();
+
+        var canSeeInactive = includeInactive && currentUser.IsInRole(UserRole.Admin);
+        if (!canSeeInactive)
+            query = query.Where(category => category.IsActive);
+
+        var oneWeekAgoUtc = timeProvider.GetUtcNow().UtcDateTime.AddDays(-7);
+
+        return await query
+            .OrderBy(category => category.SortOrder)
+            .ThenBy(category => category.Name)
+            .Select(CategoryMappings.ToResponseProjection(oneWeekAgoUtc))
             .ToPagedResponseAsync(pagination, cancellationToken);
     }
 
-    /**
-     * Obtém uma categoria específica pelo seu identificador único.
-     */
     public async Task<Result<CategoryResponseDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var oneWeekAgoUtc = timeProvider.GetUtcNow().UtcDateTime.AddDays(-7);
+
         var category = await context.Categories
             .AsNoTracking()
             .Where(existingCategory => existingCategory.Id == id)
-            .Select(CategoryMappings.ToResponseProjection)
+            .Select(CategoryMappings.ToResponseProjection(oneWeekAgoUtc))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (category is null)
@@ -46,34 +54,49 @@ public sealed class CategoryService(AppDbContext context) : ICategoryService
         return category;
     }
 
-    /**
-     * Cria uma nova categoria no sistema após verificar unicidade do nome.
-     */
     public async Task<Result<CategoryResponseDto>> CreateAsync(CreateCategoryDto request, CancellationToken cancellationToken = default)
     {
         var trimmedName = request.Name.Trim();
+        var resolvedSlug = string.IsNullOrWhiteSpace(request.Slug)
+            ? SlugHelper.GenerateSlug(trimmedName)
+            : SlugHelper.GenerateSlug(request.Slug);
 
-        /** Evita duplicação de categorias ignorando maiúsculas e minúsculas. */
-        var nameExists = await context.Categories
-            .AnyAsync(category => category.Name.ToLower() == trimmedName.ToLower(), cancellationToken);
+        var duplicateExists = await context.Categories
+            .AnyAsync(category =>
+                category.Name.ToLower() == trimmedName.ToLower() ||
+                category.Slug == resolvedSlug,
+                cancellationToken);
 
-        if (nameExists)
+        if (duplicateExists)
             return CategoryErrors.NameTaken;
+
+        var nextOrder = request.SortOrder ?? (short)(await context.Categories
+            .Select(category => (int?)category.SortOrder)
+            .MaxAsync(cancellationToken) + 1 ?? 1);
 
         var category = new Category
         {
-            Name = trimmedName
+            Name = trimmedName,
+            Slug = resolvedSlug,
+            Icon = string.IsNullOrWhiteSpace(request.Icon) ? "map-pin" : request.Icon.Trim(),
+            Color = string.IsNullOrWhiteSpace(request.Color) ? "#2563EB" : request.Color.Trim().ToUpperInvariant(),
+            SortOrder = nextOrder,
+            IsActive = request.IsActive
         };
 
-        context.Categories.Add(category);
-        await context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            context.Categories.Add(category);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return CategoryErrors.NameTaken;
+        }
 
         return category.ToResponse();
     }
 
-    /**
-     * Atualiza o nome de uma categoria existente.
-     */
     public async Task<Result<CategoryResponseDto>> UpdateAsync(Guid id, UpdateCategoryDto request, CancellationToken cancellationToken = default)
     {
         var category = await context.Categories
@@ -82,28 +105,47 @@ public sealed class CategoryService(AppDbContext context) : ICategoryService
         if (category is null)
             return CategoryErrors.NotFound;
 
-        /** Se houver novo nome, confere se não colide com outra categoria já cadastrada. */
-        if (request.Name is not null)
-        {
-            var trimmedName = request.Name.Trim();
-            var nameExists = await context.Categories
-                .AnyAsync(existingCategory => existingCategory.Id != id && existingCategory.Name.ToLower() == trimmedName.ToLower(), cancellationToken);
+        var candidateName = request.Name?.Trim() ?? category.Name;
+        var candidateSlug = request.Slug is not null
+            ? SlugHelper.GenerateSlug(request.Slug)
+            : request.Name is not null
+                ? SlugHelper.GenerateSlug(candidateName)
+                : category.Slug;
 
-            if (nameExists)
-                return CategoryErrors.NameTaken;
-        }
+        var duplicateExists = await context.Categories
+            .AnyAsync(existingCategory =>
+                existingCategory.Id != id &&
+                (existingCategory.Name.ToLower() == candidateName.ToLower() || existingCategory.Slug == candidateSlug),
+                cancellationToken);
+
+        if (duplicateExists)
+            return CategoryErrors.NameTaken;
 
         category.ApplyUpdate(request);
         await context.SaveChangesAsync(cancellationToken);
 
-        return category.ToResponse();
+        return await GetByIdAsync(id, cancellationToken);
     }
 
-    /**
-     * Remove uma categoria verificando integridade referencial antes da deleção.
-     * Impede a remoção se houver lugares ativos vinculados (ON DELETE RESTRICT).
-     */
-    public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Result> ReorderAsync(ReorderCategoriesDto request, CancellationToken cancellationToken = default)
+    {
+        var categories = await context.Categories
+            .Where(category => request.CategoryIds.Contains(category.Id))
+            .ToListAsync(cancellationToken);
+
+        for (var index = 0; index < request.CategoryIds.Count; index++)
+        {
+            var targetId = request.CategoryIds[index];
+            var matched = categories.FirstOrDefault(category => category.Id == targetId);
+            if (matched is not null)
+                matched.SortOrder = (short)(index + 1);
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> DeleteAsync(Guid id, Guid? reassignToCategoryId = null, CancellationToken cancellationToken = default)
     {
         var category = await context.Categories
             .SingleOrDefaultAsync(existingCategory => existingCategory.Id == id, cancellationToken);
@@ -111,12 +153,37 @@ public sealed class CategoryService(AppDbContext context) : ICategoryService
         if (category is null)
             return CategoryErrors.NotFound;
 
-        /** Verifica presença de lugares vinculados para retornar conflito legível em vez de erro 500 do banco. */
         var hasPlaces = await context.Places
             .AnyAsync(place => place.CategoryId == id, cancellationToken);
 
         if (hasPlaces)
-            return CategoryErrors.InUse;
+        {
+            if (!reassignToCategoryId.HasValue)
+                return CategoryErrors.InUse;
+
+            if (reassignToCategoryId.Value == id)
+                return CategoryErrors.InvalidReassignTarget;
+
+            var targetExists = await context.Categories
+                .AnyAsync(existingCategory => existingCategory.Id == reassignToCategoryId.Value, cancellationToken);
+
+            if (!targetExists)
+                return CategoryErrors.InvalidReassignTarget;
+
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            await context.Places
+                .Where(place => place.CategoryId == id)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(place => place.CategoryId, reassignToCategoryId.Value),
+                    cancellationToken);
+
+            context.Categories.Remove(category);
+            await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Result.Success();
+        }
 
         context.Categories.Remove(category);
         await context.SaveChangesAsync(cancellationToken);
