@@ -13,30 +13,22 @@ using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Services;
 
-/**
- * Serviço responsável pelo gerenciamento de usuários e perfis.
- * Centraliza cadastro com hash BCrypt, leitura segura de perfil (/me)
- * e sanitização de dados públicos para conformidade com a LGPD.
- */
-public sealed class UserService(AppDbContext context, ICurrentUserService currentUser) : IUserService
+public sealed class UserService(
+    AppDbContext context,
+    ICurrentUserService currentUser,
+    ISupabaseStorageService storageService,
+    TimeProvider timeProvider) : IUserService
 {
-    /**
-     * Registra uma nova conta com papel padrão 'Explorer' e senha cifrada em BCrypt custo 12.
-     * Trata concorrência no e-mail tanto por pré-checagem quanto capturando a unique constraint do Postgres.
-     */
     public async Task<Result<UserResponseDto>> RegisterAsync(RegisterUserDto request, CancellationToken cancellationToken = default)
     {
-        /** Normaliza o e-mail em minúsculas para buscas case-insensitive consistentes. */
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        /** Checagem prévia na aplicação para evitar overhead desnecessário de hashing se o e-mail já existir. */
         var emailExists = await context.Users
             .AnyAsync(existingUser => existingUser.Email == normalizedEmail, cancellationToken);
 
         if (emailExists)
             return UserErrors.EmailTaken;
 
-        /** Computa o hash com fator de trabalho 12 (~100-200ms de custo computacional defensivo). */
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
 
         var user = new User
@@ -47,7 +39,6 @@ public sealed class UserService(AppDbContext context, ICurrentUserService curren
             Role = UserRole.Explorer
         };
 
-        /** Persiste o usuário protegendo contra corrida (race condition) no índice único de e-mail. */
         try
         {
             context.Users.Add(user);
@@ -61,13 +52,8 @@ public sealed class UserService(AppDbContext context, ICurrentUserService curren
         return user.ToResponse();
     }
 
-    /**
-     * Retorna o perfil completo do usuário autenticado no token atual.
-     * Utilizado pela rota protegida /api/users/me.
-     */
     public async Task<Result<UserResponseDto>> GetCurrentAsync(CancellationToken cancellationToken = default)
     {
-        /** Obtém o ID do usuário diretamente dos claims do token JWT via CurrentUserService. */
         var currentUserId = currentUser.UserId;
 
         var user = await context.Users
@@ -80,13 +66,8 @@ public sealed class UserService(AppDbContext context, ICurrentUserService curren
         return user.ToResponse();
     }
 
-    /**
-     * Busca o perfil público de um usuário por ID.
-     * Omite dados sensíveis como e-mail ou sessões ativas para proteger a privacidade (LGPD).
-     */
     public async Task<Result<PublicUserProfileDto>> GetPublicProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        /** Projeta apenas os campos públicos diretamente na query do banco de dados. */
         var profile = await context.Users
             .AsNoTracking()
             .Where(existingUser => existingUser.Id == userId)
@@ -99,23 +80,30 @@ public sealed class UserService(AppDbContext context, ICurrentUserService curren
         return profile;
     }
 
-    /**
-     * Lista usuários de forma paginada para painel administrativo.
-     * Rota de acesso exclusivo para usuários com papel Admin.
-     */
-    public async Task<Result<PagedResponseDto<UserResponseDto>>> ListAsync(PaginationQueryDto pagination, CancellationToken cancellationToken = default)
+    public async Task<Result<PagedResponseDto<UserResponseDto>>> ListAsync(
+        PaginationQueryDto pagination,
+        UserListQueryDto query,
+        CancellationToken cancellationToken = default)
     {
-        return await context.Users
-            .AsNoTracking()
+        var usersQuery = context.Users.AsNoTracking();
+
+        if (query.Role.HasValue)
+            usersQuery = usersQuery.Where(existingUser => existingUser.Role == query.Role.Value);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var pattern = $"%{query.Search.Trim()}%";
+            usersQuery = usersQuery.Where(existingUser =>
+                EF.Functions.ILike(existingUser.Name, pattern) ||
+                EF.Functions.ILike(existingUser.Email, pattern));
+        }
+
+        return await usersQuery
             .OrderBy(existingUser => existingUser.Name)
             .Select(UserMappings.ToResponseProjection)
             .ToPagedResponseAsync(pagination, cancellationToken);
     }
 
-    /**
-     * Atualiza dados cadastrais do próprio usuário autenticado.
-     * Impede qualquer tentativa de IDOR pois opera unicamente sobre o ID extraído do token.
-     */
     public async Task<Result<UserResponseDto>> UpdateCurrentAsync(UpdateUserDto request, CancellationToken cancellationToken = default)
     {
         var currentUserId = currentUser.UserId;
@@ -126,18 +114,19 @@ public sealed class UserService(AppDbContext context, ICurrentUserService curren
         if (user is null)
             return UserErrors.NotFound;
 
-        /** Aplica apenas os campos não nulos informados no payload de atualização. */
         user.ApplyUpdate(request);
         await context.SaveChangesAsync(cancellationToken);
 
         return user.ToResponse();
     }
 
-    /**
-     * Exclui a conta do usuário autenticado.
-     * Aplica o direito ao esquecimento da LGPD: as sessões são apagadas em cascata
-     * e os conteúdos públicos (lugares/avaliações) têm o author_id desvinculado (SetNull).
-     */
+    public Task<Result<SignedUploadUrlDto>> CreateAvatarUploadUrlAsync(
+        CreateUploadUrlRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        return storageService.CreateAvatarUploadUrlAsync(currentUser.UserId, request.FileExtension, cancellationToken);
+    }
+
     public async Task<Result> DeleteCurrentAsync(CancellationToken cancellationToken = default)
     {
         var currentUserId = currentUser.UserId;
@@ -147,6 +136,91 @@ public sealed class UserService(AppDbContext context, ICurrentUserService curren
 
         if (user is null)
             return UserErrors.NotFound;
+
+        if (user.Role == UserRole.Admin)
+        {
+            var otherAdminExists = await context.Users
+                .AnyAsync(existingUser => existingUser.Id != user.Id && existingUser.Role == UserRole.Admin, cancellationToken);
+
+            if (!otherAdminExists)
+                return UserErrors.LastAdmin;
+        }
+
+        context.Users.Remove(user);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    public async Task<Result<UserResponseDto>> AdminUpdateAsync(
+        Guid userId,
+        AdminUpdateUserDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await context.Users
+            .SingleOrDefaultAsync(existingUser => existingUser.Id == userId, cancellationToken);
+
+        if (user is null)
+            return UserErrors.NotFound;
+
+        if (request.Email is not null)
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var emailTaken = await context.Users
+                .AnyAsync(existingUser => existingUser.Id != userId && existingUser.Email == normalizedEmail, cancellationToken);
+
+            if (emailTaken)
+                return UserErrors.EmailTaken;
+        }
+
+        var roleChanged = request.Role.HasValue && request.Role.Value != user.Role;
+        if (user.Role == UserRole.Admin && request.Role == UserRole.Explorer)
+        {
+            var otherAdminExists = await context.Users
+                .AnyAsync(existingUser => existingUser.Id != userId && existingUser.Role == UserRole.Admin, cancellationToken);
+
+            if (!otherAdminExists)
+                return UserErrors.LastAdmin;
+        }
+
+        user.ApplyAdminUpdate(request);
+
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return UserErrors.EmailTaken;
+        }
+
+        if (roleChanged || !string.IsNullOrWhiteSpace(request.Password))
+        {
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            await context.Sessions
+                .Where(session => session.UserId == userId && session.RevokedAt == null)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(session => session.RevokedAt, now), cancellationToken);
+        }
+
+        return user.ToResponse();
+    }
+
+    public async Task<Result> AdminDeleteAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await context.Users
+            .SingleOrDefaultAsync(existingUser => existingUser.Id == userId, cancellationToken);
+
+        if (user is null)
+            return UserErrors.NotFound;
+
+        if (user.Role == UserRole.Admin)
+        {
+            var otherAdminExists = await context.Users
+                .AnyAsync(existingUser => existingUser.Id != userId && existingUser.Role == UserRole.Admin, cancellationToken);
+
+            if (!otherAdminExists)
+                return UserErrors.LastAdmin;
+        }
 
         context.Users.Remove(user);
         await context.SaveChangesAsync(cancellationToken);

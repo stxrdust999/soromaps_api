@@ -15,4 +15,10 @@ public static class UserErrors
         "Já existe uma conta cadastrada com esse e-mail.",
         ErrorType.Conflict
     );
+
+    public static readonly Error LastAdmin = new(
+        "user.last_admin",
+        "Não é permitido remover ou rebaixar o único administrador do sistema.",
+        ErrorType.Conflict
+    );
 }

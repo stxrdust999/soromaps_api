@@ -8,15 +8,10 @@ using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Controllers;
 
-/**
- * Controller responsável pela gestão de usuários e perfis.
- * Separa explicitamente rotas públicas, rotas do usuário logado (/me) e administração.
- */
+[ApiController]
+[Route("api/users")]
 public class UsersController(IUserService userService) : ApiControllerBase
 {
-    /**
-     * Cadastra um novo usuário no sistema com rate limiting de prevenção contra abuso.
-     */
     [HttpPost]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Register)]
@@ -35,9 +30,6 @@ public class UsersController(IUserService userService) : ApiControllerBase
         return CreatedAtAction(nameof(GetPublicProfile), new { id = result.Value.Id }, result.Value);
     }
 
-    /**
-     * Retorna o perfil completo do usuário autenticado no token atual.
-     */
     [HttpGet("me")]
     [Authorize]
     [EndpointName("getCurrentUser")]
@@ -52,9 +44,6 @@ public class UsersController(IUserService userService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Atualiza dados de perfil do usuário autenticado sem risco de IDOR.
-     */
     [HttpPatch("me")]
     [Authorize]
     [EndpointName("updateCurrentUser")]
@@ -70,9 +59,22 @@ public class UsersController(IUserService userService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Exclui a conta do usuário autenticado.
-     */
+    [HttpPost("me/avatar/upload-url")]
+    [Authorize]
+    [EndpointName("createAvatarUploadUrl")]
+    [EndpointSummary("Gera uma URL assinada para upload de foto de perfil no Supabase Storage")]
+    [ProducesResponseType(typeof(SignedUploadUrlDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<SignedUploadUrlDto>> CreateAvatarUploadUrl(
+        [FromBody] CreateUploadUrlRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await userService.CreateAvatarUploadUrlAsync(request, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
     [HttpDelete("me")]
     [Authorize]
     [EndpointName("deleteCurrentUser")]
@@ -80,6 +82,7 @@ public class UsersController(IUserService userService) : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DeleteCurrent(CancellationToken cancellationToken)
     {
         var result = await userService.DeleteCurrentAsync(cancellationToken);
@@ -87,9 +90,6 @@ public class UsersController(IUserService userService) : ApiControllerBase
         return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }
 
-    /**
-     * Retorna dados públicos de um usuário por ID omitindo e-mail para privacidade.
-     */
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [EndpointName("getPublicUserProfile")]
@@ -103,20 +103,56 @@ public class UsersController(IUserService userService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
-    /**
-     * Lista usuários do sistema com paginação (exclusivo para Administradores).
-     */
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [EndpointName("listUsers")]
-    [EndpointSummary("Lista usuários com paginação (Administrador)")]
+    [EndpointSummary("Lista usuários com paginação e filtros (Administrador)")]
     [ProducesResponseType(typeof(PagedResponseDto<UserResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<PagedResponseDto<UserResponseDto>>> List([FromQuery] PaginationQueryDto pagination, CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResponseDto<UserResponseDto>>> List(
+        [FromQuery] PaginationQueryDto pagination,
+        [FromQuery] UserListQueryDto query,
+        CancellationToken cancellationToken)
     {
-        var result = await userService.ListAsync(pagination, cancellationToken);
+        var result = await userService.ListAsync(pagination, query, cancellationToken);
 
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    [HttpPatch("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("adminUpdateUser")]
+    [EndpointSummary("Atualiza dados ou papel de um usuário pelo ID (Administrador)")]
+    [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<UserResponseDto>> AdminUpdate(
+        Guid id,
+        [FromBody] AdminUpdateUserDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await userService.AdminUpdateAsync(id, request, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("adminDeleteUser")]
+    [EndpointSummary("Remove um usuário pelo ID (Administrador)")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AdminDelete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await userService.AdminDeleteAsync(id, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }
 }
