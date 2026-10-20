@@ -170,6 +170,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAchievementEvaluatorService, AchievementEvaluatorService>();
         services.AddScoped<IAchievementService, AchievementService>();
         services.AddScoped<IActivityService, ActivityService>();
+        services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IFeedbackService, FeedbackService>();
+        services.AddScoped<IStoryService, StoryService>();
+        services.AddScoped<IFeedService, FeedService>();
+        services.AddScoped<ICommunityService, CommunityService>();
+        services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 
         services.AddHostedService<SessionCleanupService>();
 

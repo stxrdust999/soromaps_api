@@ -4,6 +4,7 @@ using soromaps_api.DTOs.Admin;
 using soromaps_api.DTOs.Common;
 using soromaps_api.Errors;
 using soromaps_api.Models;
+using soromaps_api.Models.Enums;
 using soromaps_api.Results;
 using soromaps_api.Services.Interfaces;
 
@@ -193,6 +194,20 @@ public sealed class AdminReviewService(
         };
 
         context.ContentRemovals.Add(removal);
+
+        var reportTargetType = targetType == "review" ? ReportTargetType.Review : ReportTargetType.Comment;
+        var openReports = await context.Reports
+            .Where(r => r.TargetType == reportTargetType && r.TargetId == request.TargetId && r.Status == ReportStatus.Open)
+            .ToListAsync(cancellationToken);
+
+        foreach (var report in openReports)
+        {
+            report.Status = ReportStatus.ResolvedRemoved;
+            report.ResolvedById = moderatorId;
+            report.ResolutionNote = $"Conteúdo removido administrativamente: {request.Reason}";
+            report.ResolvedAt = now;
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         var author = authorId.HasValue
