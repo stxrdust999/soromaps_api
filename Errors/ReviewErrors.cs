@@ -10,21 +10,33 @@ public static class ReviewErrors
         ErrorType.NotFound
     );
 
+    public static readonly Error PlaceNotFound = new(
+        "review.place_not_found",
+        "O local informado não existe ou não está aprovado para receber avaliações.",
+        ErrorType.Validation
+    );
+
+    public static readonly Error AlreadyExists = new(
+        "review.already_exists",
+        "Você já publicou uma avaliação para este local. Edite sua avaliação anterior se desejar alterá-la.",
+        ErrorType.Conflict
+    );
+
     public static readonly Error NotOwner = new(
         "review.not_owner",
         "Apenas o autor ou um administrador pode alterar ou excluir esta avaliação.",
         ErrorType.Forbidden
     );
 
-    public static readonly Error AlreadyExists = new(
-        "review.already_exists",
-        "Você já avaliou este lugar.",
+    public static readonly Error CannotVoteOwn = new(
+        "review.cannot_vote_own",
+        "Você não pode marcar sua própria avaliação como útil.",
         ErrorType.Conflict
     );
 
-    public static readonly Error PlaceNotFound = new(
-        "review.place_not_found",
-        "O lugar informado para avaliação não existe ou ainda não foi aprovado.",
-        ErrorType.Validation
+    public static readonly Error NotVoted = new(
+        "review.not_voted",
+        "Você ainda não havia marcado esta avaliação como útil.",
+        ErrorType.NotFound
     );
 }

@@ -5,6 +5,7 @@ namespace soromaps_api.DTOs.Comments;
 public sealed record CommentResponseDto(
     Guid Id,
     Guid ReviewId,
+    Guid? ReplyToId,
     AuthorSummaryDto? Author,
     string Content,
     DateTime CreatedAt,

@@ -2,12 +2,24 @@ using soromaps_api.DTOs.Common;
 
 namespace soromaps_api.DTOs.Reviews;
 
+public sealed record ReviewAuthorDto(
+    Guid Id,
+    string Name,
+    string? AvatarUrl,
+    int AchievementsCount,
+    bool IsVerifiedExplorer,
+    bool VisitedPlace
+);
+
 public sealed record ReviewResponseDto(
     Guid Id,
     Guid PlaceId,
-    AuthorSummaryDto? Author,
+    ReviewAuthorDto? Author,
     string Content,
-    short Rating,
+    int Rating,
+    int UsefulVotesCount,
+    bool MarkedUsefulByMe,
+    int CommentsCount,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
