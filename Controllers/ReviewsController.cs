@@ -23,9 +23,10 @@ public class ReviewsController(IReviewService reviewService) : ApiControllerBase
     public async Task<ActionResult<PagedResponseDto<ReviewResponseDto>>> ListByPlaceId(
         Guid placeId,
         [FromQuery] PaginationQueryDto pagination,
+        [FromQuery] string? sort,
         CancellationToken cancellationToken)
     {
-        var result = await reviewService.ListByPlaceIdAsync(placeId, pagination, cancellationToken);
+        var result = await reviewService.ListByPlaceIdAsync(placeId, pagination, sort, cancellationToken);
 
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
@@ -85,6 +86,40 @@ public class ReviewsController(IReviewService reviewService) : ApiControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var result = await reviewService.DeleteAsync(id, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Registra o voto de um usuário marcando uma avaliação como útil.
+     */
+    [HttpPost("{id:guid}/useful")]
+    [Authorize]
+    [EndpointName("voteReviewUseful")]
+    [EndpointSummary("Registra voto de avaliação útil")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> VoteUseful(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await reviewService.VoteUsefulAsync(id, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Remove o voto de utilidade anteriormente concedido a uma avaliação.
+     */
+    [HttpDelete("{id:guid}/useful")]
+    [Authorize]
+    [EndpointName("removeReviewUsefulVote")]
+    [EndpointSummary("Remove voto de avaliação útil")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveUsefulVote(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await reviewService.RemoveUsefulVoteAsync(id, cancellationToken);
 
         return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }

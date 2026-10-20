@@ -102,4 +102,37 @@ public class AchievementsController(IAchievementService achievementService) : Ap
 
         return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }
+
+    /**
+     * Lista todas as conquistas disponíveis acompanhadas do progresso e status de desbloqueio do usuário logado.
+     */
+    [HttpGet("users/me")]
+    [Authorize]
+    [EndpointName("listMyAchievements")]
+    [EndpointSummary("Lista todas as conquistas e o progresso do usuário autenticado")]
+    [ProducesResponseType(typeof(IReadOnlyList<UserAchievementProgressDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IReadOnlyList<UserAchievementProgressDto>>> ListMyAchievements(CancellationToken cancellationToken)
+    {
+        var result = await achievementService.ListMyAchievementsAsync(cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Simula e estima quantos exploradores da base atingem os requisitos de uma regra antes de cadastrá-la.
+     */
+    [HttpGet("estimate")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("estimateAchievementImpact")]
+    [EndpointSummary("Estima quantos usuários já atingem uma regra de conquista antes do cadastro")]
+    [ProducesResponseType(typeof(AchievementEstimateResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AchievementEstimateResponseDto>> Estimate(
+        [FromQuery] AchievementEstimateQueryDto query,
+        CancellationToken cancellationToken)
+    {
+        var result = await achievementService.EstimateAsync(query, cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
 }
