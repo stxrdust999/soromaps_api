@@ -15,7 +15,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ModerationDecision> ModerationDecisions => Set<ModerationDecision>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<ReviewUsefulVote> ReviewUsefulVotes => Set<ReviewUsefulVote>();
+    public DbSet<ContentRemoval> ContentRemovals => Set<ContentRemoval>();
+    public DbSet<Visit> Visits => Set<Visit>();
+    public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Achievement> Achievements => Set<Achievement>();
+    public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

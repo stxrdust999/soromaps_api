@@ -19,6 +19,8 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
             .IsRequired()
             .HasMaxLength(1000);
 
+        builder.Property(comment => comment.RemovedAt);
+
         builder.Property(comment => comment.CreatedAt)
             .HasDefaultValueSql("now()");
 
@@ -27,6 +29,7 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
 
         builder.HasIndex(comment => comment.ReviewId);
         builder.HasIndex(comment => comment.UserId);
+        builder.HasIndex(comment => comment.ReplyToId);
 
         builder.HasOne(comment => comment.Review)
             .WithMany(review => review.Comments)
@@ -37,5 +40,10 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
             .WithMany(user => user.Comments)
             .HasForeignKey(comment => comment.UserId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(comment => comment.ReplyTo)
+            .WithMany(parent => parent.Replies)
+            .HasForeignKey(comment => comment.ReplyToId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -11,10 +11,12 @@ public class Review : IAuditableEntity
     public User? User { get; set; }
 
     public string Content { get; set; } = string.Empty;
-    public short Rating { get; set; }
+    public int Rating { get; set; }
+    public DateTime? RemovedAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     public ICollection<Comment> Comments { get; set; } = [];
+    public ICollection<ReviewUsefulVote> UsefulVotes { get; set; } = [];
 }

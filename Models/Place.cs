@@ -31,4 +31,6 @@ public class Place : IAuditableEntity
     public ICollection<PlacePhoto> Photos { get; set; } = [];
     public ICollection<PlaceTag> PlaceTags { get; set; } = [];
     public ICollection<ModerationDecision> ModerationDecisions { get; set; } = [];
+    public ICollection<Visit> Visits { get; set; } = [];
+    public ICollection<Favorite> Favorites { get; set; } = [];
 }

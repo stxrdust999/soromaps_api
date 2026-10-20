@@ -21,4 +21,8 @@ public class User : IAuditableEntity
     public ICollection<Comment> Comments { get; set; } = [];
     public ICollection<PlacePhoto> UploadedPlacePhotos { get; set; } = [];
     public ICollection<ModerationDecision> ModerationDecisions { get; set; } = [];
+    public ICollection<ReviewUsefulVote> UsefulVotes { get; set; } = [];
+    public ICollection<Visit> Visits { get; set; } = [];
+    public ICollection<Favorite> Favorites { get; set; } = [];
+    public ICollection<UserAchievement> UserAchievements { get; set; } = [];
 }

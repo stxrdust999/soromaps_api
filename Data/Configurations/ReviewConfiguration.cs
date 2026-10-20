@@ -25,6 +25,8 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
         builder.Property(review => review.Rating)
             .IsRequired();
 
+        builder.Property(review => review.RemovedAt);
+
         builder.Property(review => review.CreatedAt)
             .HasDefaultValueSql("now()");
 
@@ -32,7 +34,10 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
             .HasDefaultValueSql("now()");
 
         builder.HasIndex(review => new { review.PlaceId, review.UserId })
-            .IsUnique();
+            .IsUnique()
+            .HasFilter("removed_at IS NULL");
+
+        builder.HasIndex(review => new { review.PlaceId, review.CreatedAt });
 
         builder.HasOne(review => review.Place)
             .WithMany(place => place.Reviews)

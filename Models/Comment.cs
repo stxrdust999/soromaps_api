@@ -10,8 +10,14 @@ public class Comment : IAuditableEntity
     public Guid? UserId { get; set; }
     public User? User { get; set; }
 
+    public Guid? ReplyToId { get; set; }
+    public Comment? ReplyTo { get; set; }
+
     public string Content { get; set; } = string.Empty;
+    public DateTime? RemovedAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    public ICollection<Comment> Replies { get; set; } = [];
 }
