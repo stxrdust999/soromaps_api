@@ -30,6 +30,14 @@ namespace soromaps_api.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("#F59E0B")
+                        .HasColumnName("color");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -42,11 +50,52 @@ namespace soromaps_api.Migrations
                         .HasColumnType("character varying(280)")
                         .HasColumnName("description");
 
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Visit")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("award")
+                        .HasColumnName("icon");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")
                         .HasColumnName("name");
+
+                    b.Property<int>("RequiredQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("required_quantity");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Any")
+                        .HasColumnName("target_type");
+
+                    b.Property<string>("TargetValue")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("target_value");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -60,6 +109,9 @@ namespace soromaps_api.Migrations
                     b.HasIndex("Name")
                         .IsUnique()
                         .HasDatabaseName("ix_tb_achievements_name");
+
+                    b.HasIndex("IsActive", "EventType")
+                        .HasDatabaseName("ix_tb_achievements_is_active_event_type");
 
                     b.ToTable("tb_achievements", (string)null);
                 });
@@ -161,6 +213,14 @@ namespace soromaps_api.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
+
+                    b.Property<Guid?>("ReplyToId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reply_to_id");
+
                     b.Property<Guid>("ReviewId")
                         .HasColumnType("uuid")
                         .HasColumnName("review_id");
@@ -178,6 +238,9 @@ namespace soromaps_api.Migrations
                     b.HasKey("Id")
                         .HasName("pk_tb_comments");
 
+                    b.HasIndex("ReplyToId")
+                        .HasDatabaseName("ix_tb_comments_reply_to_id");
+
                     b.HasIndex("ReviewId")
                         .HasDatabaseName("ix_tb_comments_review_id");
 
@@ -185,6 +248,98 @@ namespace soromaps_api.Migrations
                         .HasDatabaseName("ix_tb_comments_user_id");
 
                     b.ToTable("tb_comments", (string)null);
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.ContentRemoval", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid?>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("ModeratorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("moderator_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("SnapshotText")
+                        .IsRequired()
+                        .HasMaxLength(3000)
+                        .HasColumnType("character varying(3000)")
+                        .HasColumnName("snapshot_text");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_id");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("target_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tb_content_removals");
+
+                    b.HasIndex("AuthorId")
+                        .HasDatabaseName("ix_tb_content_removals_author_id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_tb_content_removals_created_at");
+
+                    b.HasIndex("ModeratorId")
+                        .HasDatabaseName("ix_tb_content_removals_moderator_id");
+
+                    b.HasIndex("TargetType", "TargetId")
+                        .HasDatabaseName("ix_tb_content_removals_target_type_target_id");
+
+                    b.ToTable("tb_content_removals", (string)null);
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Favorite", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("PlaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("place_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("UserId", "PlaceId")
+                        .HasName("pk_tb_favorites");
+
+                    b.HasIndex("PlaceId")
+                        .HasDatabaseName("ix_tb_favorites_place_id");
+
+                    b.ToTable("tb_favorites", (string)null);
                 });
 
             modelBuilder.Entity("soromaps_api.Models.ModerationDecision", b =>
@@ -455,9 +610,13 @@ namespace soromaps_api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("place_id");
 
-                    b.Property<short>("Rating")
-                        .HasColumnType("smallint")
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
                         .HasColumnName("rating");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -475,14 +634,43 @@ namespace soromaps_api.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_tb_reviews_user_id");
 
+                    b.HasIndex("PlaceId", "CreatedAt")
+                        .HasDatabaseName("ix_tb_reviews_place_id_created_at");
+
                     b.HasIndex("PlaceId", "UserId")
                         .IsUnique()
-                        .HasDatabaseName("ix_tb_reviews_place_id_user_id");
+                        .HasDatabaseName("ix_tb_reviews_place_id_user_id")
+                        .HasFilter("removed_at IS NULL");
 
                     b.ToTable("tb_reviews", null, t =>
                         {
                             t.HasCheckConstraint("ck_tb_reviews_rating", "rating >= 1 AND rating <= 5");
                         });
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.ReviewUsefulVote", b =>
+                {
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("ReviewId", "UserId")
+                        .HasName("pk_tb_review_useful_votes");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_tb_review_useful_votes_user_id");
+
+                    b.ToTable("tb_review_useful_votes", (string)null);
                 });
 
             modelBuilder.Entity("soromaps_api.Models.Session", b =>
@@ -647,8 +835,81 @@ namespace soromaps_api.Migrations
                     b.ToTable("tb_users", (string)null);
                 });
 
+            modelBuilder.Entity("soromaps_api.Models.UserAchievement", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("AchievementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("achievement_id");
+
+                    b.Property<DateTime>("UnlockedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("unlocked_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("UserId", "AchievementId")
+                        .HasName("pk_tb_user_achievements");
+
+                    b.HasIndex("AchievementId")
+                        .HasDatabaseName("ix_tb_user_achievements_achievement_id");
+
+                    b.ToTable("tb_user_achievements", (string)null);
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Visit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("PlaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("place_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateOnly>("VisitedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("visited_on");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tb_visits");
+
+                    b.HasIndex("PlaceId")
+                        .HasDatabaseName("ix_tb_visits_place_id");
+
+                    b.HasIndex("UserId", "VisitedOn")
+                        .HasDatabaseName("ix_tb_visits_user_id_visited_on");
+
+                    b.HasIndex("UserId", "PlaceId", "VisitedOn")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tb_visits_user_id_place_id_visited_on");
+
+                    b.ToTable("tb_visits", (string)null);
+                });
+
             modelBuilder.Entity("soromaps_api.Models.Comment", b =>
                 {
+                    b.HasOne("soromaps_api.Models.Comment", "ReplyTo")
+                        .WithMany("Replies")
+                        .HasForeignKey("ReplyToId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_tb_comments_tb_comments_reply_to_id");
+
                     b.HasOne("soromaps_api.Models.Review", "Review")
                         .WithMany("Comments")
                         .HasForeignKey("ReviewId")
@@ -662,7 +923,49 @@ namespace soromaps_api.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_tb_comments_users_user_id");
 
+                    b.Navigation("ReplyTo");
+
                     b.Navigation("Review");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.ContentRemoval", b =>
+                {
+                    b.HasOne("soromaps_api.Models.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_tb_content_removals_users_author_id");
+
+                    b.HasOne("soromaps_api.Models.User", "Moderator")
+                        .WithMany()
+                        .HasForeignKey("ModeratorId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_tb_content_removals_users_moderator_id");
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Moderator");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Favorite", b =>
+                {
+                    b.HasOne("soromaps_api.Models.Place", "Place")
+                        .WithMany("Favorites")
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_favorites_places_place_id");
+
+                    b.HasOne("soromaps_api.Models.User", "User")
+                        .WithMany("Favorites")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_favorites_users_user_id");
+
+                    b.Navigation("Place");
 
                     b.Navigation("User");
                 });
@@ -768,6 +1071,27 @@ namespace soromaps_api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("soromaps_api.Models.ReviewUsefulVote", b =>
+                {
+                    b.HasOne("soromaps_api.Models.Review", "Review")
+                        .WithMany("UsefulVotes")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_review_useful_votes_tb_reviews_review_id");
+
+                    b.HasOne("soromaps_api.Models.User", "User")
+                        .WithMany("UsefulVotes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_review_useful_votes_users_user_id");
+
+                    b.Navigation("Review");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("soromaps_api.Models.Session", b =>
                 {
                     b.HasOne("soromaps_api.Models.User", "User")
@@ -780,13 +1104,67 @@ namespace soromaps_api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("soromaps_api.Models.UserAchievement", b =>
+                {
+                    b.HasOne("soromaps_api.Models.Achievement", "Achievement")
+                        .WithMany("UserAchievements")
+                        .HasForeignKey("AchievementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_user_achievements_tb_achievements_achievement_id");
+
+                    b.HasOne("soromaps_api.Models.User", "User")
+                        .WithMany("UserAchievements")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_user_achievements_users_user_id");
+
+                    b.Navigation("Achievement");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Visit", b =>
+                {
+                    b.HasOne("soromaps_api.Models.Place", "Place")
+                        .WithMany("Visits")
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_visits_tb_places_place_id");
+
+                    b.HasOne("soromaps_api.Models.User", "User")
+                        .WithMany("Visits")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tb_visits_tb_users_user_id");
+
+                    b.Navigation("Place");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("soromaps_api.Models.Achievement", b =>
+                {
+                    b.Navigation("UserAchievements");
+                });
+
             modelBuilder.Entity("soromaps_api.Models.Category", b =>
                 {
                     b.Navigation("Places");
                 });
 
+            modelBuilder.Entity("soromaps_api.Models.Comment", b =>
+                {
+                    b.Navigation("Replies");
+                });
+
             modelBuilder.Entity("soromaps_api.Models.Place", b =>
                 {
+                    b.Navigation("Favorites");
+
                     b.Navigation("ModerationDecisions");
 
                     b.Navigation("Photos");
@@ -794,11 +1172,15 @@ namespace soromaps_api.Migrations
                     b.Navigation("PlaceTags");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("Visits");
                 });
 
             modelBuilder.Entity("soromaps_api.Models.Review", b =>
                 {
                     b.Navigation("Comments");
+
+                    b.Navigation("UsefulVotes");
                 });
 
             modelBuilder.Entity("soromaps_api.Models.Tag", b =>
@@ -810,6 +1192,8 @@ namespace soromaps_api.Migrations
                 {
                     b.Navigation("Comments");
 
+                    b.Navigation("Favorites");
+
                     b.Navigation("ModerationDecisions");
 
                     b.Navigation("Places");
@@ -819,6 +1203,12 @@ namespace soromaps_api.Migrations
                     b.Navigation("Sessions");
 
                     b.Navigation("UploadedPlacePhotos");
+
+                    b.Navigation("UsefulVotes");
+
+                    b.Navigation("UserAchievements");
+
+                    b.Navigation("Visits");
                 });
 #pragma warning restore 612, 618
         }
