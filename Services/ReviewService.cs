@@ -13,35 +13,38 @@ using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Services;
 
-/**
- * Serviço responsável pela gestão de avaliações de locais.
- * Aplica a regra de negócio de avaliação única por usuário em cada lugar e valida autoria.
- */
-public sealed class ReviewService(AppDbContext context, ICurrentUserService currentUser) : IReviewService
+public sealed class ReviewService(
+    AppDbContext context,
+    ICurrentUserService currentUser,
+    IAchievementEvaluatorService evaluatorService) : IReviewService
 {
-    /**
-     * Lista avaliações de um local específico de forma paginada e ordenada por data decrescente.
-     */
     public async Task<Result<PagedResponseDto<ReviewResponseDto>>> ListByPlaceIdAsync(
         Guid placeId,
         PaginationQueryDto pagination,
+        string? sort = "useful",
         CancellationToken cancellationToken = default)
     {
-        return await context.Reviews
+        var currentUserId = currentUser.IsAuthenticated ? currentUser.UserId : Guid.Empty;
+
+        var query = context.Reviews
             .AsNoTracking()
-            .Where(review => review.PlaceId == placeId)
-            .OrderByDescending(review => review.CreatedAt)
-            .Select(ReviewMappings.ToResponseProjection)
+            .Where(review => review.PlaceId == placeId && review.RemovedAt == null);
+
+        var sortedQuery = (sort?.ToLowerInvariant()) switch
+        {
+            "recent" => query.OrderByDescending(r => r.CreatedAt),
+            "rating_desc" => query.OrderByDescending(r => r.Rating).ThenByDescending(r => r.CreatedAt),
+            "rating_asc" => query.OrderBy(r => r.Rating).ThenByDescending(r => r.CreatedAt),
+            _ => query.OrderByDescending(r => r.UsefulVotes.Count).ThenByDescending(r => r.CreatedAt)
+        };
+
+        return await sortedQuery
+            .Select(ReviewMappings.ToResponseProjection(currentUserId))
             .ToPagedResponseAsync(pagination, cancellationToken);
     }
 
-    /**
-     * Cria uma nova avaliação para um local aprovado.
-     * Impede avaliações em locais pendentes/inexistentes e duplicidade de review pelo mesmo autor.
-     */
     public async Task<Result<ReviewResponseDto>> CreateAsync(CreateReviewDto request, CancellationToken cancellationToken = default)
     {
-        /** Confere se o local existe e está aprovado para receber avaliações públicas. */
         var place = await context.Places
             .AsNoTracking()
             .SingleOrDefaultAsync(p => p.Id == request.PlaceId, cancellationToken);
@@ -51,14 +54,12 @@ public sealed class ReviewService(AppDbContext context, ICurrentUserService curr
 
         var currentUserId = currentUser.UserId;
 
-        /** Verifica preventivamente na aplicação se o usuário já avaliou este lugar. */
         var alreadyReviewed = await context.Reviews
-            .AnyAsync(r => r.PlaceId == request.PlaceId && r.UserId == currentUserId, cancellationToken);
+            .AnyAsync(r => r.PlaceId == request.PlaceId && r.UserId == currentUserId && r.RemovedAt == null, cancellationToken);
 
         if (alreadyReviewed)
             return ReviewErrors.AlreadyExists;
 
-        /** Instancia a avaliação com a nota e comentário fornecidos. */
         var review = new Review
         {
             PlaceId = request.PlaceId,
@@ -67,7 +68,6 @@ public sealed class ReviewService(AppDbContext context, ICurrentUserService curr
             Rating = request.Rating
         };
 
-        /** Persiste capturando eventual race condition contra o índice único do PostgreSQL. */
         try
         {
             context.Reviews.Add(review);
@@ -78,26 +78,57 @@ public sealed class ReviewService(AppDbContext context, ICurrentUserService curr
             return ReviewErrors.AlreadyExists;
         }
 
-        /** Carrega a navegação do autor para compor a resposta com o resumo seguro do perfil. */
-        await context.Entry(review).Reference(r => r.User).LoadAsync(cancellationToken);
+        await evaluatorService.EvaluateForUserAsync(currentUserId, AchievementEventType.Review, cancellationToken);
 
-        return review.ToResponse();
+        var authorData = await context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == currentUserId)
+            .Select(u => new
+            {
+                u.Id,
+                u.Name,
+                u.AvatarUrl,
+                AchievementsCount = u.UserAchievements.Count,
+                IsVerified = u.Visits.Count >= 5 &&
+                             u.Reviews.Count(r => r.RemovedAt == null) >= 3 &&
+                             !u.Reviews.Any(r => r.RemovedAt != null) &&
+                             u.CreatedAt <= DateTime.UtcNow.AddDays(-30),
+                VisitedPlace = u.Visits.Any(v => v.PlaceId == request.PlaceId)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return new ReviewResponseDto(
+            review.Id,
+            review.PlaceId,
+            authorData == null
+                ? null
+                : new ReviewAuthorDto(
+                    authorData.Id,
+                    authorData.Name,
+                    authorData.AvatarUrl,
+                    authorData.AchievementsCount,
+                    authorData.IsVerified,
+                    authorData.VisitedPlace
+                ),
+            review.Content,
+            review.Rating,
+            0,
+            false,
+            0,
+            review.CreatedAt,
+            review.UpdatedAt
+        );
     }
 
-    /**
-     * Atualiza o conteúdo ou nota de uma avaliação existente.
-     * Restrito ao autor da avaliação ou administradores.
-     */
     public async Task<Result<ReviewResponseDto>> UpdateAsync(Guid id, UpdateReviewDto request, CancellationToken cancellationToken = default)
     {
         var review = await context.Reviews
             .Include(existingReview => existingReview.User)
-            .SingleOrDefaultAsync(existingReview => existingReview.Id == id, cancellationToken);
+            .SingleOrDefaultAsync(existingReview => existingReview.Id == id && existingReview.RemovedAt == null, cancellationToken);
 
         if (review is null)
             return ReviewErrors.NotFound;
 
-        /** Verifica posse da avaliação para evitar adulteração de feedback por terceiros. */
         var isOwner = review.UserId == currentUser.UserId;
         var isAdmin = currentUser.IsInRole(UserRole.Admin);
 
@@ -107,22 +138,17 @@ public sealed class ReviewService(AppDbContext context, ICurrentUserService curr
         review.ApplyUpdate(request);
         await context.SaveChangesAsync(cancellationToken);
 
-        return review.ToResponse();
+        return await GetByIdAsync(id, cancellationToken);
     }
 
-    /**
-     * Exclui uma avaliação.
-     * Restrito ao autor da avaliação ou administradores.
-     */
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var review = await context.Reviews
-            .SingleOrDefaultAsync(existingReview => existingReview.Id == id, cancellationToken);
+            .SingleOrDefaultAsync(existingReview => existingReview.Id == id && existingReview.RemovedAt == null, cancellationToken);
 
         if (review is null)
             return ReviewErrors.NotFound;
 
-        /** Verifica posse da avaliação antes da remoção definitiva. */
         var isOwner = review.UserId == currentUser.UserId;
         var isAdmin = currentUser.IsInRole(UserRole.Admin);
 
@@ -133,5 +159,63 @@ public sealed class ReviewService(AppDbContext context, ICurrentUserService curr
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
+    }
+
+    public async Task<Result> VoteUsefulAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var review = await context.Reviews
+            .AsNoTracking()
+            .SingleOrDefaultAsync(r => r.Id == id && r.RemovedAt == null, cancellationToken);
+
+        if (review is null)
+            return ReviewErrors.NotFound;
+
+        if (review.UserId == currentUser.UserId)
+            return ReviewErrors.CannotVoteOwn;
+
+        var voteExists = await context.ReviewUsefulVotes
+            .AnyAsync(v => v.ReviewId == id && v.UserId == currentUser.UserId, cancellationToken);
+
+        if (!voteExists)
+        {
+            context.ReviewUsefulVotes.Add(new ReviewUsefulVote
+            {
+                ReviewId = id,
+                UserId = currentUser.UserId
+            });
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> RemoveUsefulVoteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var vote = await context.ReviewUsefulVotes
+            .SingleOrDefaultAsync(v => v.ReviewId == id && v.UserId == currentUser.UserId, cancellationToken);
+
+        if (vote is null)
+            return ReviewErrors.NotVoted;
+
+        context.ReviewUsefulVotes.Remove(vote);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    private async Task<Result<ReviewResponseDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var currentUserId = currentUser.IsAuthenticated ? currentUser.UserId : Guid.Empty;
+
+        var response = await context.Reviews
+            .AsNoTracking()
+            .Where(review => review.Id == id && review.RemovedAt == null)
+            .Select(ReviewMappings.ToResponseProjection(currentUserId))
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (response is null)
+            return ReviewErrors.NotFound;
+
+        return response;
     }
 }

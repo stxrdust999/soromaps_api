@@ -165,8 +165,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPlaceService, PlaceService>();
         services.AddScoped<IModerationService, ModerationService>();
         services.AddScoped<IReviewService, ReviewService>();
+        services.AddScoped<IAdminReviewService, AdminReviewService>();
         services.AddScoped<ICommentService, CommentService>();
+        services.AddScoped<IAchievementEvaluatorService, AchievementEvaluatorService>();
         services.AddScoped<IAchievementService, AchievementService>();
+        services.AddScoped<IActivityService, ActivityService>();
 
         services.AddHostedService<SessionCleanupService>();
 
