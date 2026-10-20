@@ -20,9 +20,9 @@ Este diretório organiza **tudo o que o front-end (`soromaps_web`) exige e que a
 | 05 | **Avaliações, Comentários e Moderação** | [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md) | ✅ | Votos de utilidade (`tb_review_useful_votes`), respostas de 1 nível em comentários (`reply_to_id`), listagem global `/api/admin/reviews` com sinais automáticos e remoção auditada (`tb_content_removals`). |
 | 06 | **Atividade do Explorador** | [06-AtividadeDoExplorador.md](./06-AtividadeDoExplorador.md) | ✅ | Check-in de visitas com validação Haversine (`tb_visits`), coleção de favoritos (`tb_favorites`), estatísticas do perfil (`/api/users/me/stats`) e régua de verificação (`/api/users/me/verification`). |
 | 07 | **Motor de Gamificação** | [07-Gamificacao.md](./07-Gamificacao.md) | ✅ | Regras estruturadas em `tb_achievements` (`event`, `quantity`, `target_type`, `target`, `icon`, `color`, `is_active`), tabela `tb_user_achievements`, avaliador idempotente e estimativa de alcance para o admin. |
-| 08 | **Denúncias e Feedback** | [08-DenunciasEFeedback.md](./08-DenunciasEFeedback.md) | 💤 | Tabela polimórfica `tb_reports` agrupada por alvo para `/admin/reports` e tabela `tb_feedback` para envio de sugestões/bugs. |
-| 09 | **Comunidade, Feed e Pautas** | [09-ComunidadeFeedEPautas.md](./09-ComunidadeFeedEPautas.md) | 💤 | Ranking público de exploradores (`/api/community/explorers`), consulta do feed sem grafo social (`/api/feed` + `tb_feed_mutes`) e pautas editoriais/IA (`tb_stories` + `tb_story_places`). |
-| 10 | **Dashboard Administrativo** | [10-DashboardAdmin.md](./10-DashboardAdmin.md) | 💤 | Endpoint agregado `GET /api/admin/stats` (filas de atenção, KPIs de 7/30/90 dias, séries diárias e distribuição por categoria). |
+| 08 | **Denúncias e Feedback** | [08-DenunciasEFeedback.md](./08-DenunciasEFeedback.md) | ✅ | Tabela polimórfica `tb_reports` agrupada por alvo para `/admin/reports` e tabela `tb_feedback` para envio de sugestões/bugs. |
+| 09 | **Comunidade, Feed e Pautas** | [09-ComunidadeFeedEPautas.md](./09-ComunidadeFeedEPautas.md) | ✅ | Ranking público de exploradores (`/api/community/explorers`), consulta do feed sem grafo social (`/api/feed` + `tb_feed_mutes`) e pautas editoriais/IA (`tb_stories` + `tb_story_places`). |
+| 10 | **Dashboard Administrativo** | [10-DashboardAdmin.md](./10-DashboardAdmin.md) | ✅ | Endpoint agregado `GET /api/admin/stats` (filas de atenção, KPIs de 7/30/90 dias, séries diárias e distribuição por categoria). |
 
 ---
 
