@@ -21,6 +21,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
+    public DbSet<Report> Reports => Set<Report>();
+    public DbSet<Feedback> Feedbacks => Set<Feedback>();
+    public DbSet<Story> Stories => Set<Story>();
+    public DbSet<StoryPlace> StoryPlaces => Set<StoryPlace>();
+    public DbSet<FeedMute> FeedMutes => Set<FeedMute>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

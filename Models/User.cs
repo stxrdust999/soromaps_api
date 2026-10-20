@@ -25,4 +25,9 @@ public class User : IAuditableEntity
     public ICollection<Visit> Visits { get; set; } = [];
     public ICollection<Favorite> Favorites { get; set; } = [];
     public ICollection<UserAchievement> UserAchievements { get; set; } = [];
+    public ICollection<Report> FiledReports { get; set; } = [];
+    public ICollection<Report> ResolvedReports { get; set; } = [];
+    public ICollection<Feedback> Feedbacks { get; set; } = [];
+    public ICollection<Story> AuthoredStories { get; set; } = [];
+    public ICollection<FeedMute> FeedMutes { get; set; } = [];
 }

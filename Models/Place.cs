@@ -33,4 +33,5 @@ public class Place : IAuditableEntity
     public ICollection<ModerationDecision> ModerationDecisions { get; set; } = [];
     public ICollection<Visit> Visits { get; set; } = [];
     public ICollection<Favorite> Favorites { get; set; } = [];
+    public ICollection<StoryPlace> StoryPlaces { get; set; } = [];
 }
