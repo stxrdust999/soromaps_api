@@ -13,6 +13,7 @@ public interface IUserService
     Task<Result<UserResponseDto>> UpdateCurrentAsync(UpdateUserDto request, CancellationToken cancellationToken = default);
     Task<Result<SignedUploadUrlDto>> CreateAvatarUploadUrlAsync(CreateUploadUrlRequestDto request, CancellationToken cancellationToken = default);
     Task<Result> DeleteCurrentAsync(CancellationToken cancellationToken = default);
+    Task<Result<UserResponseDto>> AdminGetByIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<Result<UserResponseDto>> AdminUpdateAsync(Guid userId, AdminUpdateUserDto request, CancellationToken cancellationToken = default);
     Task<Result> AdminDeleteAsync(Guid userId, CancellationToken cancellationToken = default);
 }

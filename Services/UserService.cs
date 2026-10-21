@@ -152,6 +152,18 @@ public sealed class UserService(
         return Result.Success();
     }
 
+    public async Task<Result<UserResponseDto>> AdminGetByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await context.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(existingUser => existingUser.Id == userId, cancellationToken);
+
+        if (user is null)
+            return UserErrors.NotFound;
+
+        return user.ToResponse();
+    }
+
     public async Task<Result<UserResponseDto>> AdminUpdateAsync(
         Guid userId,
         AdminUpdateUserDto request,

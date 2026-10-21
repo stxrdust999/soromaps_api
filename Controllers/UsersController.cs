@@ -120,6 +120,21 @@ public class UsersController(IUserService userService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
+    [HttpGet("{id:guid}/admin")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("adminGetUser")]
+    [EndpointSummary("Busca os dados completos de um usuário pelo ID (Administrador)")]
+    [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserResponseDto>> AdminGetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await userService.AdminGetByIdAsync(id, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
     [HttpPatch("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [EndpointName("adminUpdateUser")]
