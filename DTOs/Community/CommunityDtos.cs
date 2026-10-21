@@ -20,7 +20,7 @@ public sealed record ExplorerListItemDto(
     DateTime JoinedAt
 );
 
-public sealed record PublicUserProfileDto(
+public sealed record CommunityUserProfileDto(
     Guid Id,
     string Name,
     string? AvatarUrl,

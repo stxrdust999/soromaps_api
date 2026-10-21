@@ -116,7 +116,7 @@ public sealed class CommunityService(
     /**
      * Consulta dados públicos do perfil do usuário com histórico de contribuições públicas.
      */
-    public async Task<Result<PublicUserProfileDto>> GetPublicProfileAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<Result<CommunityUserProfileDto>> GetPublicProfileAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await context.Users
             .AsNoTracking()
@@ -185,7 +185,7 @@ public sealed class CommunityService(
             ))
             .ToListAsync(cancellationToken);
 
-        return new PublicUserProfileDto(
+        return new CommunityUserProfileDto(
             user.Id,
             user.Name,
             user.AvatarUrl,

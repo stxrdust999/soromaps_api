@@ -21,5 +21,5 @@ public interface ICommunityService
     /**
      * Consulta perfil público com histórico de avaliações, locais aprovados e conquistas.
      */
-    Task<Result<PublicUserProfileDto>> GetPublicProfileAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<Result<CommunityUserProfileDto>> GetPublicProfileAsync(Guid userId, CancellationToken cancellationToken = default);
 }

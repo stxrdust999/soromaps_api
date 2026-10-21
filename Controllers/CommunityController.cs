@@ -9,6 +9,8 @@ namespace soromaps_api.Controllers;
 /**
  * Controller responsável pelo ranking público e perfis da comunidade de exploradores de Sorocaba.
  */
+[ApiController]
+[Route("api")]
 public class CommunityController(ICommunityService communityService) : ApiControllerBase
 {
     /**
@@ -34,11 +36,11 @@ public class CommunityController(ICommunityService communityService) : ApiContro
      */
     [HttpGet("community/users/{id:guid}")]
     [AllowAnonymous]
-    [EndpointName("getPublicUserProfile")]
+    [EndpointName("getCommunityUserProfile")]
     [EndpointSummary("Retorna o perfil público com histórico de contribuições")]
-    [ProducesResponseType(typeof(PublicUserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommunityUserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PublicUserProfileDto>> GetPublicProfile(
+    public async Task<ActionResult<CommunityUserProfileDto>> GetPublicProfile(
         Guid id,
         CancellationToken cancellationToken)
     {
