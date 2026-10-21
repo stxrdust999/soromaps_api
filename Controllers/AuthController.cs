@@ -11,6 +11,8 @@ namespace soromaps_api.Controllers;
  * Controller responsável pelos fluxos de autenticação e gerenciamento de sessões.
  * Gerencia login com rate limiting, renovação de tokens (RTR) e encerramento de sessões (logout).
  */
+[ApiController]
+[Route("api/auth")]
 public class AuthController(IAuthService authService) : ApiControllerBase
 {
     /**

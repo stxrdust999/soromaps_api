@@ -10,6 +10,8 @@ namespace soromaps_api.Controllers;
  * Controller responsável pelos comentários deixados em avaliações de locais.
  * Permite leitura aberta e restringe criação e remoção a usuários autorizados.
  */
+[ApiController]
+[Route("api/comments")]
 public class CommentsController(ICommentService commentService) : ApiControllerBase
 {
     /**

@@ -10,6 +10,8 @@ namespace soromaps_api.Controllers;
 /**
  * Controller responsável pelo recebimento e consulta de feedbacks da plataforma.
  */
+[ApiController]
+[Route("api")]
 public class FeedbackController(IFeedbackService feedbackService) : ApiControllerBase
 {
     /**

@@ -84,18 +84,18 @@ if (args.Contains("--seed"))
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+app.UseRouting();
+app.UseRateLimiter();
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 }
 else
 {
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

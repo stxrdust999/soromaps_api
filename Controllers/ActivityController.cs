@@ -11,6 +11,8 @@ namespace soromaps_api.Controllers;
  * Gerencia check-ins presenciais com validação de geolocalização, favoritos e status de verificação.
  */
 [Authorize]
+[ApiController]
+[Route("api")]
 public class ActivityController(IActivityService activityService) : ApiControllerBase
 {
     /**

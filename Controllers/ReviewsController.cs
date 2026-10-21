@@ -10,6 +10,8 @@ namespace soromaps_api.Controllers;
  * Controller responsável pelas avaliações e notas dos locais cadastrados.
  * Permite leitura aberta e restringe a criação de avaliações a usuários autenticados.
  */
+[ApiController]
+[Route("api/reviews")]
 public class ReviewsController(IReviewService reviewService) : ApiControllerBase
 {
     /**

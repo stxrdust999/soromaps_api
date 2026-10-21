@@ -12,6 +12,8 @@ namespace soromaps_api.Controllers;
  * Acesso exclusivo a administradores do sistema.
  */
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+[ApiController]
+[Route("api")]
 public class AdminReviewsController(IAdminReviewService adminReviewService) : ApiControllerBase
 {
     /**

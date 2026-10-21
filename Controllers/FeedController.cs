@@ -10,6 +10,8 @@ namespace soromaps_api.Controllers;
  * Controller responsável pelo feed dinâmico baseado em locais e silenciamento de preferências.
  */
 [Authorize]
+[ApiController]
+[Route("api")]
 public class FeedController(IFeedService feedService) : ApiControllerBase
 {
     /**

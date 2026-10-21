@@ -11,6 +11,8 @@ namespace soromaps_api.Controllers;
  * Controller responsável pelo catálogo de conquistas do sistema.
  * Disponibiliza listagem aberta de conquistas e restringe a administração a Administradores.
  */
+[ApiController]
+[Route("api/achievements")]
 public class AchievementsController(IAchievementService achievementService) : ApiControllerBase
 {
     /**

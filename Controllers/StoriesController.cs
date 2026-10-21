@@ -10,6 +10,8 @@ namespace soromaps_api.Controllers;
 /**
  * Controller responsável pelas pautas editoriais, roteiros temáticos e curadorias de locais.
  */
+[ApiController]
+[Route("api")]
 public class StoriesController(IStoryService storyService) : ApiControllerBase
 {
     /**

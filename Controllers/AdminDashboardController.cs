@@ -10,6 +10,8 @@ namespace soromaps_api.Controllers;
  * Controller responsável pelos dados consolidados do dashboard administrativo.
  */
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+[ApiController]
+[Route("api")]
 public class AdminDashboardController(IAdminDashboardService adminDashboardService) : ApiControllerBase
 {
     /**

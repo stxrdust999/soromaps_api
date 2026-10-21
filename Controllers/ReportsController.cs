@@ -10,6 +10,8 @@ namespace soromaps_api.Controllers;
 /**
  * Controller responsável pelo recebimento de denúncias e fila de triagem da moderação.
  */
+[ApiController]
+[Route("api")]
 public class ReportsController(IReportService reportService) : ApiControllerBase
 {
     /**
