@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using soromaps_api.DTOs.Common;
 using soromaps_api.Models.Enums;
 
 namespace soromaps_api.DTOs.Feed;
@@ -22,6 +23,15 @@ public sealed record FeedQueryDto(
     int? PageSize = 20
 );
 
+public sealed record FeedAchievementSummaryDto(
+    Guid Id,
+    string Name,
+    string Description,
+    string Icon,
+    string Color,
+    double HoldersPercentage
+);
+
 public sealed record FeedItemDto(
     string Id,
     string Kind, // "review" | "new_place" | "story" | "place_burst" | "rare_achievement"
@@ -36,5 +46,15 @@ public sealed record FeedItemDto(
     string? CategoryIcon,
     string? ImageUrl,
     object? Metadata,
-    DateTime OccurredAt
+    DateTime OccurredAt,
+    AuthorSummaryDto? Author = null,
+    int? AuthorAchievementsCount = null,
+    Guid? ReviewId = null,
+    int? Rating = null,
+    int? UsefulVotesCount = null,
+    bool? MarkedUsefulByMe = null,
+    string? StorySlug = null,
+    int? PlacesCount = null,
+    int? VisitsCount = null,
+    FeedAchievementSummaryDto? Achievement = null
 );

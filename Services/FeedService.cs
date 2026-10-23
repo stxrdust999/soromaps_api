@@ -61,7 +61,8 @@ public sealed class FeedService(
             var reviews = await context.Reviews
                 .AsNoTracking()
                 .Include(r => r.Place).ThenInclude(p => p.Category)
-                .Include(r => r.User)
+                .Include(r => r.User).ThenInclude(u => u!.UserAchievements)
+                .Include(r => r.UsefulVotes)
                 .Where(r => r.RemovedAt == null)
                 .OrderByDescending(r => r.CreatedAt)
                 .Take(40)
@@ -76,6 +77,9 @@ public sealed class FeedService(
                     continue;
 
                 var reason = favoritePlaceSet.Contains(r.PlaceId) ? "salvo" : "cidade";
+                var authorDto = r.User is null
+                    ? null
+                    : new AuthorSummaryDto(r.User.Id, r.User.Name, r.User.AvatarUrl);
 
                 feedItems.Add(new FeedItemDto(
                     $"review_{r.Id}",
@@ -91,7 +95,13 @@ public sealed class FeedService(
                     r.Place.Category.Icon,
                     null,
                     new { r.Rating, r.UsefulVotes.Count },
-                    r.CreatedAt
+                    r.CreatedAt,
+                    Author: authorDto,
+                    AuthorAchievementsCount: r.User?.UserAchievements.Count ?? 0,
+                    ReviewId: r.Id,
+                    Rating: r.Rating,
+                    UsefulVotesCount: r.UsefulVotes.Count,
+                    MarkedUsefulByMe: r.UsefulVotes.Any(vote => vote.UserId == userId)
                 ));
             }
         }
@@ -103,6 +113,7 @@ public sealed class FeedService(
                 .AsNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.Photos)
+                .Include(p => p.Author)
                 .Where(p => p.Status == PlaceStatus.Approved)
                 .OrderByDescending(p => p.CreatedAt)
                 .Take(20)
@@ -117,6 +128,9 @@ public sealed class FeedService(
                     continue;
 
                 var coverPhoto = p.Photos.OrderByDescending(photo => photo.IsCover).Select(photo => photo.Url).FirstOrDefault();
+                var authorDto = p.Author is null
+                    ? null
+                    : new AuthorSummaryDto(p.Author.Id, p.Author.Name, p.Author.AvatarUrl);
 
                 feedItems.Add(new FeedItemDto(
                     $"place_{p.Id}",
@@ -132,7 +146,8 @@ public sealed class FeedService(
                     p.Category.Icon,
                     coverPhoto,
                     new { p.HasWifi, p.IsPetFriendly },
-                    p.CreatedAt
+                    p.CreatedAt,
+                    Author: authorDto
                 ));
             }
         }
@@ -142,6 +157,7 @@ public sealed class FeedService(
         {
             var stories = await context.Stories
                 .AsNoTracking()
+                .Include(s => s.Author)
                 .Include(s => s.StoryPlaces).ThenInclude(sp => sp.Place).ThenInclude(p => p.Photos)
                 .Where(s => s.Status == StoryStatus.Published)
                 .OrderByDescending(s => s.PublishedAt ?? s.CreatedAt)
@@ -158,6 +174,10 @@ public sealed class FeedService(
                     .Select(sp => sp.Place.Photos.OrderByDescending(p => p.IsCover).Select(p => p.Url).FirstOrDefault())
                     .FirstOrDefault();
 
+                var authorDto = s.Author is null
+                    ? null
+                    : new AuthorSummaryDto(s.Author.Id, s.Author.Name, s.Author.AvatarUrl);
+
                 feedItems.Add(new FeedItemDto(
                     $"story_{s.Id}",
                     "story",
@@ -172,7 +192,10 @@ public sealed class FeedService(
                     "newspaper",
                     coverPhoto,
                     new { s.Slug, PlacesCount = s.StoryPlaces.Count },
-                    s.PublishedAt ?? s.CreatedAt
+                    s.PublishedAt ?? s.CreatedAt,
+                    Author: authorDto,
+                    StorySlug: s.Slug,
+                    PlacesCount: s.StoryPlaces.Count
                 ));
             }
         }
@@ -227,7 +250,56 @@ public sealed class FeedService(
                     b.CategoryIcon,
                     null,
                     new { b.VisitsCount },
-                    b.VisitedOn.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
+                    b.VisitedOn.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                    VisitsCount: b.VisitsCount
+                ));
+            }
+        }
+
+        // 5. Desbloqueios recentes de conquistas
+        if (!mutedKinds.Contains("rare_achievement"))
+        {
+            var totalUsersCount = Math.Max(1, await context.Users.CountAsync(cancellationToken));
+
+            var recentUnlocks = await context.UserAchievements
+                .AsNoTracking()
+                .Include(ua => ua.User)
+                .Include(ua => ua.Achievement).ThenInclude(a => a.UserAchievements)
+                .Where(ua => ua.Achievement.IsActive)
+                .OrderByDescending(ua => ua.UnlockedAt)
+                .Take(15)
+                .ToListAsync(cancellationToken);
+
+            foreach (var unlock in recentUnlocks)
+            {
+                var holdersPercentage = Math.Round(unlock.Achievement.UserAchievements.Count * 100.0 / totalUsersCount, 1);
+                var authorDto = new AuthorSummaryDto(unlock.User.Id, unlock.User.Name, unlock.User.AvatarUrl);
+                var achievementDto = new FeedAchievementSummaryDto(
+                    unlock.Achievement.Id,
+                    unlock.Achievement.Name,
+                    unlock.Achievement.Description,
+                    unlock.Achievement.Icon,
+                    unlock.Achievement.Color,
+                    holdersPercentage
+                );
+
+                feedItems.Add(new FeedItemDto(
+                    $"achievement_{unlock.UserId}_{unlock.AchievementId}",
+                    "rare_achievement",
+                    "cidade",
+                    $"{unlock.User.Name} desbloqueou {unlock.Achievement.Name}",
+                    unlock.Achievement.Description,
+                    unlock.User.Neighborhood,
+                    null,
+                    null,
+                    unlock.Achievement.Name,
+                    unlock.Achievement.Color,
+                    unlock.Achievement.Icon,
+                    null,
+                    null,
+                    unlock.UnlockedAt,
+                    Author: authorDto,
+                    Achievement: achievementDto
                 ));
             }
         }
