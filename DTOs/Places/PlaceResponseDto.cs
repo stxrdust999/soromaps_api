@@ -1,10 +1,19 @@
 using System.ComponentModel.DataAnnotations;
 using soromaps_api.DTOs.Categories;
 using soromaps_api.DTOs.Common;
+using soromaps_api.DTOs.Reviews;
 using soromaps_api.DTOs.Tags;
 using soromaps_api.Models.Enums;
 
 namespace soromaps_api.DTOs.Places;
+
+public sealed record PlaceVisitorRankDto(
+    Guid UserId,
+    string Name,
+    string? AvatarUrl,
+    int VisitsCount,
+    int AchievementsCount
+);
 
 public sealed record PlacePhotoResponseDto(
     Guid Id,
@@ -57,5 +66,9 @@ public sealed record PlaceResponseDto(
     IReadOnlyList<TagResponseDto> Tags,
     PlaceStatus Status,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    bool IsFavoritedByMe = false,
+    bool VisitedTodayByMe = false,
+    IReadOnlyList<PlaceVisitorRankDto>? TopVisitors = null,
+    ReviewResponseDto? FeaturedVerifiedReview = null
 );

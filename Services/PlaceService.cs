@@ -114,7 +114,69 @@ public sealed class PlaceService(
         if (response is null)
             return PlaceErrors.NotFound;
 
-        return response;
+        var currentUserId = currentUser.IsAuthenticated ? currentUser.UserId : Guid.Empty;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var isFavoritedByMe = currentUserId != Guid.Empty &&
+            await context.Favorites
+                .AsNoTracking()
+                .AnyAsync(favorite => favorite.PlaceId == id && favorite.UserId == currentUserId, cancellationToken);
+
+        var visitedTodayByMe = currentUserId != Guid.Empty &&
+            await context.Visits
+                .AsNoTracking()
+                .AnyAsync(visit => visit.PlaceId == id && visit.UserId == currentUserId && visit.VisitedOn == today, cancellationToken);
+
+        var topVisitorGroups = await context.Visits
+            .AsNoTracking()
+            .Where(visit => visit.PlaceId == id)
+            .GroupBy(visit => new
+            {
+                visit.UserId,
+                visit.User.Name,
+                visit.User.AvatarUrl
+            })
+            .Select(group => new
+            {
+                group.Key.UserId,
+                group.Key.Name,
+                group.Key.AvatarUrl,
+                VisitsCount = group.Count(),
+                AchievementsCount = context.UserAchievements.Count(userAchievement => userAchievement.UserId == group.Key.UserId)
+            })
+            .OrderByDescending(rank => rank.VisitsCount)
+            .ThenByDescending(rank => rank.AchievementsCount)
+            .Take(5)
+            .Select(rank => new PlaceVisitorRankDto(
+                rank.UserId,
+                rank.Name,
+                rank.AvatarUrl,
+                rank.VisitsCount,
+                rank.AchievementsCount
+            ))
+            .ToListAsync(cancellationToken);
+
+        var featuredVerifiedReview = await context.Reviews
+            .AsNoTracking()
+            .Where(review =>
+                review.PlaceId == id &&
+                review.RemovedAt == null &&
+                review.User != null &&
+                review.User.Visits.Count >= 5 &&
+                review.User.Reviews.Count(authorReview => authorReview.RemovedAt == null) >= 3 &&
+                !review.User.Reviews.Any(authorReview => authorReview.RemovedAt != null))
+            .OrderByDescending(review => review.UsefulVotes.Count)
+            .ThenByDescending(review => review.CreatedAt)
+            .Select(ReviewMappings.ToResponseProjection(currentUserId))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return response with
+        {
+            IsFavoritedByMe = isFavoritedByMe,
+            VisitedTodayByMe = visitedTodayByMe,
+            TopVisitors = topVisitorGroups,
+            FeaturedVerifiedReview = featuredVerifiedReview
+        };
     }
 
     public async Task<Result<PlaceResponseDto>> CreateAsync(CreatePlaceDto request, CancellationToken cancellationToken = default)
