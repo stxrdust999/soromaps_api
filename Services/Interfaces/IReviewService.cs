@@ -19,6 +19,13 @@ public interface IReviewService
         CancellationToken cancellationToken = default);
 
     /**
+     * Lista avaliações ativas publicadas pelo usuário autenticado.
+     */
+    Task<Result<PagedResponseDto<ReviewResponseDto>>> ListMyReviewsAsync(
+        PaginationQueryDto pagination,
+        CancellationToken cancellationToken = default);
+
+    /**
      * Publica uma nova avaliação garantindo unicidade por usuário e local.
      */
     Task<Result<ReviewResponseDto>> CreateAsync(CreateReviewDto request, CancellationToken cancellationToken = default);

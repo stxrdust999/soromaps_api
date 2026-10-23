@@ -43,6 +43,20 @@ public sealed class ReviewService(
             .ToPagedResponseAsync(pagination, cancellationToken);
     }
 
+    public async Task<Result<PagedResponseDto<ReviewResponseDto>>> ListMyReviewsAsync(
+        PaginationQueryDto pagination,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = currentUser.UserId;
+
+        return await context.Reviews
+            .AsNoTracking()
+            .Where(review => review.UserId == currentUserId && review.RemovedAt == null)
+            .OrderByDescending(review => review.CreatedAt)
+            .Select(ReviewMappings.ToResponseProjection(currentUserId))
+            .ToPagedResponseAsync(pagination, cancellationToken);
+    }
+
     public async Task<Result<ReviewResponseDto>> CreateAsync(CreateReviewDto request, CancellationToken cancellationToken = default)
     {
         var place = await context.Places

@@ -29,7 +29,9 @@ public static class ReviewMappings
             review.UsefulVotes.Any(v => v.UserId == currentUserId),
             review.Comments.Count(c => c.RemovedAt == null),
             review.CreatedAt,
-            review.UpdatedAt
+            review.UpdatedAt,
+            review.Place.Name,
+            review.Place.Category.Name
         );
 
     public static ReviewResponseDto ToResponse(

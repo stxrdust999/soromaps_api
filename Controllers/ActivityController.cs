@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using soromaps_api.DTOs.Activity;
 using soromaps_api.DTOs.Common;
+using soromaps_api.DTOs.Reviews;
 using soromaps_api.Services.Interfaces;
 
 namespace soromaps_api.Controllers;
@@ -13,7 +14,7 @@ namespace soromaps_api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api")]
-public class ActivityController(IActivityService activityService) : ApiControllerBase
+public class ActivityController(IActivityService activityService, IReviewService reviewService) : ApiControllerBase
 {
     /**
      * Registra check-in em um local após validar proximidade máxima de 200m e unicidade diária.
@@ -126,6 +127,22 @@ public class ActivityController(IActivityService activityService) : ApiControlle
     public async Task<ActionResult<UserVerificationStatusDto>> GetMyVerificationStatus(CancellationToken cancellationToken)
     {
         var result = await activityService.GetMyVerificationStatusAsync(cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Lista o histórico paginado de avaliações publicadas pelo usuário autenticado.
+     */
+    [HttpGet("users/me/reviews")]
+    [EndpointName("listMyReviews")]
+    [EndpointSummary("Lista avaliações publicadas pelo usuário autenticado")]
+    [ProducesResponseType(typeof(PagedResponseDto<ReviewResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<PagedResponseDto<ReviewResponseDto>>> ListMyReviews(
+        [FromQuery] PaginationQueryDto pagination,
+        CancellationToken cancellationToken)
+    {
+        var result = await reviewService.ListMyReviewsAsync(pagination, cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 }

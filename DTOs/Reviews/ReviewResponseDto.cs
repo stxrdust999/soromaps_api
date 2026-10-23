@@ -21,5 +21,7 @@ public sealed record ReviewResponseDto(
     bool MarkedUsefulByMe,
     int CommentsCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    string? PlaceName = null,
+    string? PlaceCategory = null
 );
