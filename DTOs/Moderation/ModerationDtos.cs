@@ -18,6 +18,7 @@ public sealed record ModerationAuthorStatsDto(
     string? AvatarUrl,
     int TotalSubmittedPlaces,
     int ApprovedPlacesCount,
+    int ReviewsWrittenCount,
     DateTime JoinedAt
 );
 
@@ -89,5 +90,7 @@ public sealed record ModerationDecisionResponseDto(
     string? Reason,
     string? FeedbackNote,
     bool IsUndo,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? Neighborhood = null,
+    string? CategoryName = null
 );

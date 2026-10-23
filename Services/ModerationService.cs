@@ -82,6 +82,17 @@ public sealed class ModerationService(
             })
             .ToDictionaryAsync(item => item.AuthorId, cancellationToken);
 
+        var authorReviewsLookup = await context.Reviews
+            .AsNoTracking()
+            .Where(review => review.UserId.HasValue && authorIds.Contains(review.UserId.Value) && review.RemovedAt == null)
+            .GroupBy(review => review.UserId!.Value)
+            .Select(group => new
+            {
+                AuthorId = group.Key,
+                ReviewsCount = group.Count()
+            })
+            .ToDictionaryAsync(item => item.AuthorId, item => item.ReviewsCount, cancellationToken);
+
         var existingPlacesForComparison = await context.Places
             .AsNoTracking()
             .Where(place => place.Status == PlaceStatus.Approved)
@@ -102,12 +113,14 @@ public sealed class ModerationService(
             if (place.Author is not null)
             {
                 authorStatsLookup.TryGetValue(place.Author.Id, out var stats);
+                authorReviewsLookup.TryGetValue(place.Author.Id, out var reviewsCount);
                 authorDto = new ModerationAuthorStatsDto(
                     place.Author.Id,
                     place.Author.Name,
                     place.Author.AvatarUrl,
                     stats?.Total ?? 1,
                     stats?.Approved ?? 0,
+                    reviewsCount,
                     place.Author.CreatedAt
                 );
             }
@@ -386,7 +399,9 @@ public sealed class ModerationService(
                 decision.Reason,
                 decision.FeedbackNote,
                 decision.IsUndo,
-                decision.CreatedAt
+                decision.CreatedAt,
+                decision.Place.Neighborhood,
+                decision.Place.Category.Name
             ))
             .ToPagedResponseAsync(pagination, cancellationToken);
     }
