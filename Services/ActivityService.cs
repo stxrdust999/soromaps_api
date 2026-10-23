@@ -54,9 +54,6 @@ public sealed class ActivityService(
             place.Latitude,
             place.Longitude);
 
-        if (distanceMeters > MaxCheckInDistanceMeters)
-            return ActivityErrors.TooFar;
-
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var today = DateOnly.FromDateTime(now);
 
