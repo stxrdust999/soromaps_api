@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="soromaps_api.csproj" />
+  <Project Path="tests/soromaps_api.Tests/soromaps_api.Tests.csproj" />
 </Solution>
