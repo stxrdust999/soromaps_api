@@ -74,13 +74,14 @@ public sealed class StoryService(
     public async Task<Result<StoryDetailDto>> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         var normalizedSlug = slug.Trim().ToLowerInvariant();
+        var isGuid = Guid.TryParse(normalizedSlug, out var parsedId);
 
         var story = await context.Stories
             .AsNoTracking()
             .Include(s => s.Author)
             .Include(s => s.StoryPlaces).ThenInclude(sp => sp.Place).ThenInclude(p => p.Category)
             .Include(s => s.StoryPlaces).ThenInclude(sp => sp.Place).ThenInclude(p => p.Photos)
-            .SingleOrDefaultAsync(s => s.Slug == normalizedSlug, cancellationToken);
+            .SingleOrDefaultAsync(s => s.Slug == normalizedSlug || (isGuid && s.Id == parsedId), cancellationToken);
 
         if (story is null)
             return StoryErrors.NotFound;
