@@ -11,6 +11,8 @@ public interface IUserService
     Task<Result<PublicUserProfileDto>> GetPublicProfileAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<Result<PagedResponseDto<UserResponseDto>>> ListAsync(PaginationQueryDto pagination, UserListQueryDto query, CancellationToken cancellationToken = default);
     Task<Result<UserResponseDto>> UpdateCurrentAsync(UpdateUserDto request, CancellationToken cancellationToken = default);
+    Task<Result> ChangePasswordAsync(ChangePasswordDto request, CancellationToken cancellationToken = default);
+    Task<Result<UserResponseDto>> ChangeEmailAsync(ChangeEmailDto request, CancellationToken cancellationToken = default);
     Task<Result<SignedUploadUrlDto>> CreateAvatarUploadUrlAsync(CreateUploadUrlRequestDto request, CancellationToken cancellationToken = default);
     Task<Result> DeleteCurrentAsync(CancellationToken cancellationToken = default);
     Task<Result<UserResponseDto>> AdminGetByIdAsync(Guid userId, CancellationToken cancellationToken = default);

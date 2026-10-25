@@ -21,4 +21,16 @@ public static class UserErrors
         "Não é permitido remover ou rebaixar o único administrador do sistema.",
         ErrorType.Conflict
     );
+
+    public static readonly Error InvalidCurrentPassword = new(
+        "user.invalid_current_password",
+        "A senha atual informada está incorreta.",
+        ErrorType.Validation
+    );
+
+    public static readonly Error SamePassword = new(
+        "user.same_as_current_password",
+        "A nova senha não pode ser igual à senha atual.",
+        ErrorType.Validation
+    );
 }

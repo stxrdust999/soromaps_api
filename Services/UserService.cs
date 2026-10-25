@@ -120,6 +120,68 @@ public sealed class UserService(
         return user.ToResponse();
     }
 
+    /** Altera a senha do usuário autenticado após validar a senha atual e garantir que a nova senha difere da anterior. */
+    public async Task<Result> ChangePasswordAsync(ChangePasswordDto request, CancellationToken cancellationToken = default)
+    {
+        var currentUserId = currentUser.UserId;
+
+        var user = await context.Users
+            .SingleOrDefaultAsync(existingUser => existingUser.Id == currentUserId, cancellationToken);
+
+        if (user is null)
+            return UserErrors.NotFound;
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            return UserErrors.InvalidCurrentPassword;
+
+        if (request.NewPassword == request.CurrentPassword)
+            return UserErrors.SamePassword;
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 12);
+        user.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    /** Atualiza o e-mail do usuário autenticado mediante confirmação de senha e verificação de unicidade. */
+    public async Task<Result<UserResponseDto>> ChangeEmailAsync(ChangeEmailDto request, CancellationToken cancellationToken = default)
+    {
+        var currentUserId = currentUser.UserId;
+
+        var user = await context.Users
+            .SingleOrDefaultAsync(existingUser => existingUser.Id == currentUserId, cancellationToken);
+
+        if (user is null)
+            return UserErrors.NotFound;
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            return UserErrors.InvalidCurrentPassword;
+
+        var normalizedEmail = request.NewEmail.Trim().ToLowerInvariant();
+
+        var emailTaken = await context.Users
+            .AnyAsync(existingUser => existingUser.Id != currentUserId && existingUser.Email == normalizedEmail, cancellationToken);
+
+        if (emailTaken)
+            return UserErrors.EmailTaken;
+
+        user.Email = normalizedEmail;
+        user.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return UserErrors.EmailTaken;
+        }
+
+        return user.ToResponse();
+    }
+
     public Task<Result<SignedUploadUrlDto>> CreateAvatarUploadUrlAsync(
         CreateUploadUrlRequestDto request,
         CancellationToken cancellationToken = default)

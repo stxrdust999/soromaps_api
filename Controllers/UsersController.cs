@@ -59,6 +59,39 @@ public class UsersController(IUserService userService) : ApiControllerBase
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
     }
 
+    /** Altera a senha do usuário autenticado mediante validação da senha atual. */
+    [HttpPost("me/change-password")]
+    [Authorize]
+    [EndpointName("changePassword")]
+    [EndpointSummary("Altera a senha do usuário autenticado")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto request, CancellationToken cancellationToken)
+    {
+        var result = await userService.ChangePasswordAsync(request, cancellationToken);
+
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
+    }
+
+    /** Altera o e-mail do usuário autenticado mediante confirmação de senha. */
+    [HttpPatch("me/email")]
+    [Authorize]
+    [EndpointName("changeEmail")]
+    [EndpointSummary("Altera o e-mail do usuário autenticado")]
+    [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<UserResponseDto>> ChangeEmail([FromBody] ChangeEmailDto request, CancellationToken cancellationToken)
+    {
+        var result = await userService.ChangeEmailAsync(request, cancellationToken);
+
+        return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
     [HttpPost("me/avatar/upload-url")]
     [Authorize]
     [EndpointName("createAvatarUploadUrl")]
