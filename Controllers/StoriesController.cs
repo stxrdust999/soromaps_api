@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using soromaps_api.Constants;
 using soromaps_api.DTOs.Common;
 using soromaps_api.DTOs.Stories;
@@ -72,6 +73,34 @@ public class StoriesController(IStoryService storyService) : ApiControllerBase
     }
 
     /**
+     * Sincroniza e cria rascunho de pauta diária automática via rotina de cron.
+     */
+    [HttpPost("stories/cron-sync")]
+    [AllowAnonymous]
+    [EndpointName("cronSyncStory")]
+    [EndpointSummary("Sincroniza e cria rascunho de pauta diária automática")]
+    [ProducesResponseType(typeof(StoryDetailDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<StoryDetailDto>> CronSync(
+        [FromHeader(Name = "X-Cron-Key")] string? cronKey,
+        [FromBody] CreateStoryDto request,
+        [FromServices] IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var expectedKey = configuration["Cron:SecretKey"] ?? "soromaps-cron-secret-2026";
+        if (string.IsNullOrWhiteSpace(cronKey) || cronKey != expectedKey)
+            return Unauthorized();
+
+        var result = await storyService.CreateAsync(request, cancellationToken);
+        if (result.IsFailure)
+            return HandleFailure(result.Error!);
+
+        return StatusCode(StatusCodes.Status201Created, result.Value);
+    }
+
+    /**
      * Atualiza dados de conteúdo e locais vinculados a uma pauta.
      */
     [HttpPatch("stories/{id:guid}")]
@@ -110,5 +139,23 @@ public class StoriesController(IStoryService storyService) : ApiControllerBase
     {
         var result = await storyService.PublishAsync(id, cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : HandleFailure(result.Error!);
+    }
+
+    /**
+     * Exclui um rascunho de pauta editorial.
+     */
+    [HttpDelete("stories/{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [EndpointName("deleteStory")]
+    [EndpointSummary("Exclui um rascunho de pauta editorial")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await storyService.DeleteDraftAsync(id, cancellationToken);
+        return result.IsSuccess ? NoContent() : HandleFailure(result.Error!);
     }
 }

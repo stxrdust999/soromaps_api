@@ -36,4 +36,9 @@ public interface IStoryService
      * Valida locais vinculados e publica a pauta editorial na plataforma.
      */
     Task<Result<StoryDetailDto>> PublishAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /**
+     * Exclui um rascunho de pauta editorial e seus vínculos de locais.
+     */
+    Task<Result> DeleteDraftAsync(Guid id, CancellationToken cancellationToken = default);
 }

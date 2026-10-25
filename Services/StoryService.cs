@@ -271,4 +271,26 @@ public sealed class StoryService(
         await context.SaveChangesAsync(cancellationToken);
         return await GetBySlugAsync(story.Slug, cancellationToken);
     }
+
+    /**
+     * Exclui um rascunho de pauta editorial e seus vínculos de locais.
+     */
+    public async Task<Result> DeleteDraftAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var story = await context.Stories
+            .Include(s => s.StoryPlaces)
+            .SingleOrDefaultAsync(s => s.Id == id, cancellationToken);
+
+        if (story is null)
+            return StoryErrors.NotFound;
+
+        if (story.Status != StoryStatus.Draft)
+            return StoryErrors.CannotDeletePublished;
+
+        context.StoryPlaces.RemoveRange(story.StoryPlaces);
+        context.Stories.Remove(story);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
 }

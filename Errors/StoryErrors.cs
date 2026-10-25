@@ -33,4 +33,10 @@ public static class StoryErrors
         "Esta pauta já se encontra publicada.",
         ErrorType.Conflict
     );
+
+    public static readonly Error CannotDeletePublished = new(
+        "story.cannot_delete_published",
+        "Apenas rascunhos de pauta não publicados podem ser excluídos.",
+        ErrorType.Validation
+    );
 }
