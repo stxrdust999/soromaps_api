@@ -32,17 +32,17 @@ public sealed class FeedService(
 
         var mutedNeighborhoods = mutes
             .Where(m => m.ScopeType == FeedMuteScopeType.Neighborhood)
-            .Select(m => m.ScopeValue.ToLowerInvariant())
+            .Select(m => m.ScopeValue.Trim().ToLowerInvariant())
             .ToHashSet();
 
         var mutedCategories = mutes
             .Where(m => m.ScopeType == FeedMuteScopeType.Category)
-            .Select(m => m.ScopeValue.ToLowerInvariant())
+            .Select(m => m.ScopeValue.Trim().ToLowerInvariant())
             .ToHashSet();
 
         var mutedKinds = mutes
             .Where(m => m.ScopeType == FeedMuteScopeType.ItemKind)
-            .Select(m => m.ScopeValue.ToLowerInvariant())
+            .Select(m => NormalizeFeedKind(m.ScopeValue))
             .ToHashSet();
 
         var favoritePlaceIds = await context.Favorites
@@ -73,7 +73,8 @@ public sealed class FeedService(
                 if (mutedNeighborhoods.Contains(r.Place.Neighborhood.ToLowerInvariant()))
                     continue;
 
-                if (mutedCategories.Contains(r.Place.Category.Slug.ToLowerInvariant()))
+                if (mutedCategories.Contains(r.Place.Category.Slug.ToLowerInvariant()) ||
+                    mutedCategories.Contains(r.Place.Category.Name.ToLowerInvariant()))
                     continue;
 
                 var reason = favoritePlaceSet.Contains(r.PlaceId) ? "salvo" : "cidade";
@@ -124,7 +125,8 @@ public sealed class FeedService(
                 if (mutedNeighborhoods.Contains(p.Neighborhood.ToLowerInvariant()))
                     continue;
 
-                if (mutedCategories.Contains(p.Category.Slug.ToLowerInvariant()))
+                if (mutedCategories.Contains(p.Category.Slug.ToLowerInvariant()) ||
+                    mutedCategories.Contains(p.Category.Name.ToLowerInvariant()))
                     continue;
 
                 var coverPhoto = p.Photos.OrderByDescending(photo => photo.IsCover).Select(photo => photo.Url).FirstOrDefault();
@@ -153,7 +155,7 @@ public sealed class FeedService(
         }
 
         // 3. Pautas editoriais publicadas
-        if (!mutedKinds.Contains("story"))
+        if (!mutedKinds.Contains("curation") && !mutedKinds.Contains("story"))
         {
             var stories = await context.Stories
                 .AsNoTracking()
@@ -201,7 +203,7 @@ public sealed class FeedService(
         }
 
         // 4. Rajadas de visitas recentes (≥ 3 visitas no mesmo dia em local aprovado)
-        if (!mutedKinds.Contains("place_burst"))
+        if (!mutedKinds.Contains("burst") && !mutedKinds.Contains("place_burst"))
         {
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var today = DateOnly.FromDateTime(now);
@@ -233,7 +235,8 @@ public sealed class FeedService(
                 if (mutedNeighborhoods.Contains(b.Neighborhood.ToLowerInvariant()))
                     continue;
 
-                if (mutedCategories.Contains(b.CategorySlug.ToLowerInvariant()))
+                if (mutedCategories.Contains(b.CategorySlug.ToLowerInvariant()) ||
+                    mutedCategories.Contains(b.CategoryName.ToLowerInvariant()))
                     continue;
 
                 feedItems.Add(new FeedItemDto(
@@ -257,7 +260,7 @@ public sealed class FeedService(
         }
 
         // 5. Desbloqueios recentes de conquistas
-        if (!mutedKinds.Contains("rare_achievement"))
+        if (!mutedKinds.Contains("achievement") && !mutedKinds.Contains("rare_achievement"))
         {
             var totalUsersCount = Math.Max(1, await context.Users.CountAsync(cancellationToken));
 
@@ -272,6 +275,13 @@ public sealed class FeedService(
 
             foreach (var unlock in recentUnlocks)
             {
+                if (unlock.User.Neighborhood is not null && mutedNeighborhoods.Contains(unlock.User.Neighborhood.ToLowerInvariant()))
+                    continue;
+
+                if (unlock.Achievement.TargetType == AchievementTargetType.Category &&
+                    unlock.Achievement.TargetValue is not null &&
+                    mutedCategories.Contains(unlock.Achievement.TargetValue.ToLowerInvariant()))
+                    continue;
                 var holdersPercentage = Math.Round(unlock.Achievement.UserAchievements.Count * 100.0 / totalUsersCount, 1);
                 var authorDto = new AuthorSummaryDto(unlock.User.Id, unlock.User.Name, unlock.User.AvatarUrl);
                 var achievementDto = new FeedAchievementSummaryDto(
@@ -351,24 +361,58 @@ public sealed class FeedService(
     }
 
     /**
-     * Cadastra um novo silenciamento (ex: silenciar determinado bairro ou categoria).
+     * Cadastra um novo silenciamento (ex: silenciar determinado bairro, categoria ou tipo de item).
      */
     public async Task<Result<FeedMuteResponseDto>> AddMuteAsync(CreateFeedMuteDto request, CancellationToken cancellationToken = default)
     {
         var userId = currentUser.UserId;
-        var normalizedValue = request.ScopeValue.Trim().ToLowerInvariant();
+        var rawValue = request.ScopeValue.Trim();
+        var normalizedValue = rawValue.ToLowerInvariant();
 
-        var alreadyMuted = await context.FeedMutes
-            .AnyAsync(m => m.UserId == userId && m.ScopeType == request.ScopeType && m.ScopeValue.ToLower() == normalizedValue, cancellationToken);
+        if (request.ScopeType == FeedMuteScopeType.ItemKind)
+        {
+            var targetKind = NormalizeFeedKind(rawValue);
+            var existingKindMutes = await context.FeedMutes
+                .Where(m => m.UserId == userId && m.ScopeType == FeedMuteScopeType.ItemKind)
+                .Select(m => m.ScopeValue)
+                .ToListAsync(cancellationToken);
 
-        if (alreadyMuted)
-            return FeedMuteErrors.AlreadyMuted;
+            if (existingKindMutes.Any(k => NormalizeFeedKind(k) == targetKind))
+                return FeedMuteErrors.AlreadyMuted;
+        }
+        else if (request.ScopeType == FeedMuteScopeType.Category)
+        {
+            var matchingCategory = await context.Categories
+                .AsNoTracking()
+                .Where(c => c.Slug.ToLower() == normalizedValue || c.Name.ToLower() == normalizedValue)
+                .Select(c => new { Slug = c.Slug.ToLower(), Name = c.Name.ToLower() })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var existingCategoryMutes = await context.FeedMutes
+                .Where(m => m.UserId == userId && m.ScopeType == FeedMuteScopeType.Category)
+                .Select(m => m.ScopeValue.Trim().ToLower())
+                .ToListAsync(cancellationToken);
+
+            var alreadyMuted = existingCategoryMutes.Contains(normalizedValue) ||
+                (matchingCategory is not null && (existingCategoryMutes.Contains(matchingCategory.Slug) || existingCategoryMutes.Contains(matchingCategory.Name)));
+
+            if (alreadyMuted)
+                return FeedMuteErrors.AlreadyMuted;
+        }
+        else
+        {
+            var alreadyMuted = await context.FeedMutes
+                .AnyAsync(m => m.UserId == userId && m.ScopeType == request.ScopeType && m.ScopeValue.ToLower() == normalizedValue, cancellationToken);
+
+            if (alreadyMuted)
+                return FeedMuteErrors.AlreadyMuted;
+        }
 
         var mute = new FeedMute
         {
             UserId = userId,
             ScopeType = request.ScopeType,
-            ScopeValue = request.ScopeValue.Trim(),
+            ScopeValue = rawValue,
             CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         };
 
@@ -376,6 +420,24 @@ public sealed class FeedService(
         await context.SaveChangesAsync(cancellationToken);
 
         return new FeedMuteResponseDto(mute.Id, mute.ScopeType, mute.ScopeValue, mute.CreatedAt);
+    }
+
+    /**
+     * Normaliza identificadores de tipo do feed aceitando termos em português, inglês e slugs.
+     */
+    private static string NormalizeFeedKind(string kind)
+    {
+        var normalized = kind.Trim().ToLowerInvariant().Replace('-', '_');
+        return normalized switch
+        {
+            "avaliacao" or "review" or "reviews" => "review",
+            "novo_ponto" or "new_place" or "places" or "place" => "new_place",
+            "movimento" or "burst" or "place_burst" or "bursts" => "burst",
+            "conquista" or "achievement" or "rare_achievement" or "achievements" => "achievement",
+            "marco" or "milestone" or "milestones" => "milestone",
+            "curadoria" or "curation" or "story" or "stories" => "curation",
+            _ => normalized
+        };
     }
 
     /**
