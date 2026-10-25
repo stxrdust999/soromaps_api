@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 using soromaps_api.Data.Seed;
 using soromaps_api.Extensions;
+using soromaps_api.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -78,6 +79,15 @@ if (args.Contains("--seed"))
     using var scope = app.Services.CreateScope();
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedAsync();
+    return;
+}
+
+if (args.Any(arg => arg is "--import-places" or "--scrape-places" or "--import-osm"))
+{
+    using var scope = app.Services.CreateScope();
+    var scraper = scope.ServiceProvider.GetRequiredService<IOsmPlaceScraperService>();
+    var pending = args.Contains("--pending");
+    await scraper.ScrapeAndImportAsync(!pending);
     return;
 }
 

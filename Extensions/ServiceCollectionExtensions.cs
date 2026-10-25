@@ -154,6 +154,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddHttpContextAccessor();
         services.AddHttpClient<ISupabaseStorageService, SupabaseStorageService>();
+        services.AddHttpClient<IOsmPlaceScraperService, OsmPlaceScraperService>();
 
         services.AddScoped<DatabaseSeeder>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
