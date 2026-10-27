@@ -34,7 +34,8 @@ public sealed class AdminDashboardService(
         };
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var currentWindowStart = now.AddDays(-days);
+        var todayUtc = DateTime.SpecifyKind(now.Date, DateTimeKind.Utc);
+        var currentWindowStart = todayUtc.AddDays(-days);
         var previousWindowStart = currentWindowStart.AddDays(-days);
 
         // 1. Filas de atenção
@@ -84,21 +85,21 @@ public sealed class AdminDashboardService(
             avgModHours
         );
 
-        // 3. Séries temporais diárias
-        var userDates = await context.Users.AsNoTracking().Where(u => u.CreatedAt >= currentWindowStart).Select(u => u.CreatedAt.Date).ToListAsync(cancellationToken);
-        var reviewDates = await context.Reviews.AsNoTracking().Where(r => r.RemovedAt == null && r.CreatedAt >= currentWindowStart).Select(r => r.CreatedAt.Date).ToListAsync(cancellationToken);
-        var placeDates = await context.Places.AsNoTracking().Where(p => p.CreatedAt >= currentWindowStart).Select(p => p.CreatedAt.Date).ToListAsync(cancellationToken);
-        var decisionDates = await context.ModerationDecisions.AsNoTracking().Where(md => md.CreatedAt >= currentWindowStart).Select(md => md.CreatedAt.Date).ToListAsync(cancellationToken);
+        /** Materializa os timestamps em UTC e agrupa por dia em memória para evitar falha de tradução de `.Date` no Npgsql. */
+        var userDates = await context.Users.AsNoTracking().Where(u => u.CreatedAt >= currentWindowStart).Select(u => u.CreatedAt).ToListAsync(cancellationToken);
+        var reviewDates = await context.Reviews.AsNoTracking().Where(r => r.RemovedAt == null && r.CreatedAt >= currentWindowStart).Select(r => r.CreatedAt).ToListAsync(cancellationToken);
+        var placeDates = await context.Places.AsNoTracking().Where(p => p.CreatedAt >= currentWindowStart).Select(p => p.CreatedAt).ToListAsync(cancellationToken);
+        var decisionDates = await context.ModerationDecisions.AsNoTracking().Where(md => md.CreatedAt >= currentWindowStart).Select(md => md.CreatedAt).ToListAsync(cancellationToken);
 
-        var userMap = userDates.GroupBy(d => d).ToDictionary(g => g.Key, g => g.Count());
-        var reviewMap = reviewDates.GroupBy(d => d).ToDictionary(g => g.Key, g => g.Count());
-        var placeMap = placeDates.GroupBy(d => d).ToDictionary(g => g.Key, g => g.Count());
-        var decisionMap = decisionDates.GroupBy(d => d).ToDictionary(g => g.Key, g => g.Count());
+        var userMap = userDates.GroupBy(timestamp => timestamp.Date).ToDictionary(group => group.Key, group => group.Count());
+        var reviewMap = reviewDates.GroupBy(timestamp => timestamp.Date).ToDictionary(group => group.Key, group => group.Count());
+        var placeMap = placeDates.GroupBy(timestamp => timestamp.Date).ToDictionary(group => group.Key, group => group.Count());
+        var decisionMap = decisionDates.GroupBy(timestamp => timestamp.Date).ToDictionary(group => group.Key, group => group.Count());
 
         var dailySeries = new List<DailySeriesItemDto>();
         for (var i = days - 1; i >= 0; i--)
         {
-            var dayDate = now.Date.AddDays(-i);
+            var dayDate = todayUtc.AddDays(-i).Date;
             var dateKey = dayDate.ToString("yyyy-MM-dd");
 
             dailySeries.Add(new DailySeriesItemDto(
@@ -110,53 +111,86 @@ public sealed class AdminDashboardService(
             ));
         }
 
-        // 4. Distribuição por categoria
-        var categoriesDistribution = await context.Categories
+        /** Projeta contagens em tipo anônimo antes de mapear para record posicional, garantindo tradução SQL do OrderByDescending. */
+        var rawCategoriesDistribution = await context.Categories
             .AsNoTracking()
-            .Select(c => new CategoryDistributionItemDto(
-                c.Name,
-                c.Color,
-                c.Icon,
-                c.Places.Count(p => p.Status == PlaceStatus.Approved),
-                c.Places.SelectMany(p => p.Reviews).Count(r => r.RemovedAt == null)
-            ))
-            .OrderByDescending(c => c.PlacesCount)
-            .ToListAsync(cancellationToken);
-
-        // 5. Itens recentes da fila
-        var oldestPendingPlaces = await context.Places
-            .AsNoTracking()
-            .Include(p => p.Category)
-            .Where(p => p.Status == PlaceStatus.Pending)
-            .OrderBy(p => p.CreatedAt)
-            .Take(5)
-            .Select(p => new PendingPlaceQueuePreviewDto(
-                p.Id,
-                p.Name,
-                p.Neighborhood,
-                p.Category.Name,
-                p.CreatedAt,
-                Math.Round((now - p.CreatedAt).TotalHours, 1)
-            ))
-            .ToListAsync(cancellationToken);
-
-        // 6. Top alvos denunciados
-        var topReportedGroups = await context.Reports
-            .AsNoTracking()
-            .Where(r => r.Status == ReportStatus.Open)
-            .GroupBy(r => new { r.TargetType, r.TargetId })
-            .Select(g => new
+            .Select(category => new
             {
-                g.Key.TargetType,
-                g.Key.TargetId,
-                ReportersCount = g.Select(r => r.ReporterId).Distinct().Count(),
-                Reasons = g.Select(r => r.Reason).Distinct().ToList(),
-                FirstReportedAt = g.Min(r => r.CreatedAt),
-                LastReportedAt = g.Max(r => r.CreatedAt)
+                category.Name,
+                category.Color,
+                category.Icon,
+                PlacesCount = category.Places.Count(place => place.Status == PlaceStatus.Approved),
+                ReviewsCount = category.Places.SelectMany(place => place.Reviews).Count(review => review.RemovedAt == null)
             })
-            .OrderByDescending(x => x.ReportersCount)
-            .Take(5)
+            .OrderByDescending(category => category.PlacesCount)
             .ToListAsync(cancellationToken);
+
+        var categoriesDistribution = rawCategoriesDistribution
+            .Select(category => new CategoryDistributionItemDto(
+                category.Name,
+                category.Color,
+                category.Icon,
+                category.PlacesCount,
+                category.ReviewsCount
+            ))
+            .ToList();
+
+        /** Busca os 5 locais pendentes mais antigos e calcula as horas em espera em memória. */
+        var oldestPendingRaw = await context.Places
+            .AsNoTracking()
+            .Where(place => place.Status == PlaceStatus.Pending)
+            .OrderBy(place => place.CreatedAt)
+            .Take(5)
+            .Select(place => new
+            {
+                place.Id,
+                place.Name,
+                place.Neighborhood,
+                CategoryName = place.Category.Name,
+                place.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        var oldestPendingPlaces = oldestPendingRaw
+            .Select(place => new PendingPlaceQueuePreviewDto(
+                place.Id,
+                place.Name,
+                place.Neighborhood,
+                place.CategoryName,
+                place.CreatedAt,
+                Math.Round(Math.Max(0, (now - place.CreatedAt).TotalHours), 1)
+            ))
+            .ToList();
+
+        /** Materializa as denúncias abertas e consolida o agrupamento de motivos distintos em memória. */
+        var openReportsRaw = await context.Reports
+            .AsNoTracking()
+            .Where(report => report.Status == ReportStatus.Open)
+            .Select(report => new
+            {
+                report.TargetType,
+                report.TargetId,
+                report.ReporterId,
+                report.Reason,
+                report.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        var topReportedGroups = openReportsRaw
+            .GroupBy(report => new { report.TargetType, report.TargetId })
+            .Select(group => new
+            {
+                group.Key.TargetType,
+                group.Key.TargetId,
+                ReportersCount = group.Select(report => report.ReporterId).Distinct().Count(),
+                Reasons = group.Select(report => report.Reason).Distinct().ToList(),
+                FirstReportedAt = group.Min(report => report.CreatedAt),
+                LastReportedAt = group.Max(report => report.CreatedAt)
+            })
+            .OrderByDescending(group => group.ReportersCount)
+            .ThenByDescending(group => group.LastReportedAt)
+            .Take(5)
+            .ToList();
 
         var topReportedTargets = new List<AdminGroupedReportItemDto>();
         foreach (var group in topReportedGroups)
