@@ -8,5 +8,5 @@ public interface IOsmPlaceScraperService
     /**
      * Minera pontos de interesse em Sorocaba via Overpass API, realiza deduplicação com a base existente e persiste novos locais.
      */
-    Task<int> ScrapeAndImportAsync(bool approveImmediately = true, CancellationToken cancellationToken = default);
+    Task<int> ScrapeAndImportAsync(bool approveImmediately = false, CancellationToken cancellationToken = default);
 }

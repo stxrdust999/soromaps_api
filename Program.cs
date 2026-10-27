@@ -86,8 +86,8 @@ if (args.Any(arg => arg is "--import-places" or "--scrape-places" or "--import-o
 {
     using var scope = app.Services.CreateScope();
     var scraper = scope.ServiceProvider.GetRequiredService<IOsmPlaceScraperService>();
-    var pending = args.Contains("--pending");
-    await scraper.ScrapeAndImportAsync(!pending);
+    var approveImmediately = args.Contains("--approve");
+    await scraper.ScrapeAndImportAsync(approveImmediately);
     return;
 }
 

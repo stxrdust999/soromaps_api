@@ -38,14 +38,27 @@ out center tags;";
     /**
      * Consulta a Overpass API com fallback resiliente para o Nominatim OSM, processa nós e vias retornados, descarta duplicatas e cadastra os novos pontos na base de dados.
      */
-    public async Task<int> ScrapeAndImportAsync(bool approveImmediately = true, CancellationToken cancellationToken = default)
+    public async Task<int> ScrapeAndImportAsync(bool approveImmediately = false, CancellationToken cancellationToken = default)
     {
         if (!httpClient.DefaultRequestHeaders.Contains("User-Agent"))
             httpClient.DefaultRequestHeaders.Add("User-Agent", "SoromapsCommunityApp/1.0 (admin@soromaps.com)");
 
-        var adminUser = await context.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(user => user.Role == UserRole.Admin, cancellationToken);
+        var previouslySyncedPlaces = await context.Places
+            .Where(place => place.Status == PlaceStatus.Approved &&
+                            (place.Description.Contains("Importado via OpenStreetMap") ||
+                             place.About.Contains("Ponto de interesse mapeado")))
+            .ToListAsync(cancellationToken);
+
+        if (previouslySyncedPlaces.Count > 0)
+        {
+            foreach (var syncedPlace in previouslySyncedPlaces)
+            {
+                syncedPlace.Status = PlaceStatus.Pending;
+                syncedPlace.AuthorId = null;
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         var activeCategories = await context.Categories
             .Where(category => category.IsActive)
@@ -107,14 +120,17 @@ out center tags;";
 
             var about = !string.IsNullOrWhiteSpace(descriptionText)
                 ? (descriptionText.Length > 280 ? descriptionText[..277].Trim() + "..." : descriptionText)
-                : $"{name} em Sorocaba ({category.Name}). Ponto de interesse mapeado.";
+                : $"{name} em Sorocaba ({category.Name}). Ponto capturado via sincronização externa (OpenStreetMap).";
 
             if (about.Length > 280)
                 about = about[..280].Trim();
 
+            var syncSuffix = " [Sincronizado via OpenStreetMap]";
             var description = !string.IsNullOrWhiteSpace(descriptionText)
-                ? (descriptionText.Length > 2000 ? descriptionText[..1997].Trim() + "..." : descriptionText)
-                : $"Ponto de interesse urbano ({category.Name}) localizado em {neighborhood}, Sorocaba. Importado via OpenStreetMap.";
+                ? (descriptionText.Length + syncSuffix.Length > 2000
+                    ? descriptionText[..(2000 - syncSuffix.Length - 3)].Trim() + "..." + syncSuffix
+                    : descriptionText + syncSuffix)
+                : $"Ponto de interesse urbano ({category.Name}) localizado em {neighborhood}, Sorocaba. Capturado automaticamente via sincronização com API externa (OpenStreetMap) para curadoria da moderação.";
 
             if (description.Length > 2000)
                 description = description[..2000].Trim();
@@ -122,7 +138,7 @@ out center tags;";
             var newPlace = new Place
             {
                 CategoryId = category.Id,
-                AuthorId = adminUser?.Id,
+                AuthorId = null,
                 Name = name,
                 Latitude = item.Latitude,
                 Longitude = item.Longitude,
