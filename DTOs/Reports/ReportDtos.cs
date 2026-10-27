@@ -19,6 +19,21 @@ public sealed record CreateReportDto(
     string? Details
 );
 
+/**
+ * Dados resumidos de um usuário denunciante em um caso agrupado de moderação.
+ */
+public sealed record ReportReporterItemDto(
+    string Name,
+    string Initials,
+    string Reason,
+    DateTime CreatedAt,
+    string MemberSince,
+    int AccountAgeDays
+);
+
+/**
+ * Snapshot enriquecido do conteúdo denunciado e métricas históricas do autor.
+ */
 public sealed record ReportTargetSnapshotDto(
     Guid TargetId,
     ReportTargetType TargetType,
@@ -26,9 +41,22 @@ public sealed record ReportTargetSnapshotDto(
     string? Subtitle,
     string Content,
     AuthorSummaryDto? Author,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? AuthorTitle = null,
+    DateTime? AuthorMemberSince = null,
+    int AuthorReviewsCount = 0,
+    int AuthorRemovedContentCount = 0,
+    string? PlaceName = null,
+    string? Neighborhood = null,
+    string? CategoryName = null,
+    string? Coordinates = null,
+    int? Rating = null,
+    string? ParentReviewContent = null
 );
 
+/**
+ * Caso agrupado de denúncias abertas sobre um mesmo alvo polimórfico.
+ */
 public sealed record AdminGroupedReportItemDto(
     ReportTargetType TargetType,
     Guid TargetId,
@@ -36,7 +64,8 @@ public sealed record AdminGroupedReportItemDto(
     IReadOnlyList<string> Reasons,
     ReportTargetSnapshotDto Target,
     DateTime FirstReportedAt,
-    DateTime LastReportedAt
+    DateTime LastReportedAt,
+    IReadOnlyList<ReportReporterItemDto>? Reporters = null
 );
 
 public sealed record DismissReportsDto(
