@@ -239,7 +239,7 @@ public sealed class StoryService(
     }
 
     /**
-     * Publica a pauta editorial após validar que todos os locais associados estão aprovados na plataforma.
+     * Publica a pauta editorial validando que eventuais locais associados estão aprovados na plataforma.
      */
     public async Task<Result<StoryDetailDto>> PublishAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -253,15 +253,15 @@ public sealed class StoryService(
         if (story.Status == StoryStatus.Published)
             return StoryErrors.AlreadyPublished;
 
-        if (story.StoryPlaces.Count == 0)
-            return StoryErrors.NoPlacesLinked;
+        if (story.StoryPlaces.Count > 0)
+        {
+            var placeIds = story.StoryPlaces.Select(sp => sp.PlaceId).ToList();
+            var unapprovedPlacesExist = await context.Places
+                .AnyAsync(p => placeIds.Contains(p.Id) && p.Status != PlaceStatus.Approved, cancellationToken);
 
-        var placeIds = story.StoryPlaces.Select(sp => sp.PlaceId).ToList();
-        var unapprovedPlacesExist = await context.Places
-            .AnyAsync(p => placeIds.Contains(p.Id) && p.Status != PlaceStatus.Approved, cancellationToken);
-
-        if (unapprovedPlacesExist)
-            return StoryErrors.UnapprovedPlacesLinked;
+            if (unapprovedPlacesExist)
+                return StoryErrors.UnapprovedPlacesLinked;
+        }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         story.Status = StoryStatus.Published;
