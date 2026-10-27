@@ -1,6 +1,6 @@
 # 📰 09. Comunidade, Feed e Pautas Editoriais
 
-> **Status:** 💤 Pendente · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md), [06-AtividadeDoExplorador.md](./06-AtividadeDoExplorador.md), [07-Gamificacao.md](./07-Gamificacao.md) · [Índice](./README.md)
+> **Status:** ✅ Concluído · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md), [06-AtividadeDoExplorador.md](./06-AtividadeDoExplorador.md), [07-Gamificacao.md](./07-Gamificacao.md) · [Índice](./README.md)
 
 Abastece as telas `/community`, `/community/[id]`, `/feed` e `/pautas/[slug]`.
 
@@ -9,7 +9,7 @@ Abastece as telas `/community`, `/community/[id]`, `/feed` e `/pautas/[slug]`.
 ## 🗄️ Banco de Dados
 
 ### 1. Pautas Editoriais (`tb_stories` e `tb_story_places`)
-- [ ] Criar tabela `tb_stories` (`Story`):
+- [x] Criar tabela `tb_stories` (`Story`):
   - `id` (`uuid` PK, `gen_random_uuid()`)
   - `slug` (`varchar(120)` **UNIQUE**)
   - `title` (`varchar(140)`)
@@ -22,7 +22,7 @@ Abastece as telas `/community`, `/community/[id]`, `/feed` e `/pautas/[slug]`.
   - `author_id` (`uuid` FK → `tb_users`)
   - `published_at` (`timestamptz` null)
   - `created_at` / `updated_at` (`timestamptz`)
-- [ ] Criar tabela `tb_story_places` (`StoryPlace`):
+- [x] Criar tabela `tb_story_places` (`StoryPlace`):
   - PK composta `(story_id, place_id)`
   - `sort_order` (`smallint`)
   - `angle_title` (`varchar(120)`)
@@ -30,7 +30,7 @@ Abastece as telas `/community`, `/community/[id]`, `/feed` e `/pautas/[slug]`.
   - `local_tip` (`varchar(280)` null)
 
 ### 2. Silenciamentos do Feed (`tb_feed_mutes`)
-- [ ] Criar tabela `tb_feed_mutes` (`FeedMute`):
+- [x] Criar tabela `tb_feed_mutes` (`FeedMute`):
   - `id` (`uuid` PK, `gen_random_uuid()`)
   - `user_id` (`uuid` FK → `tb_users` `ON DELETE CASCADE`, indexado)
   - `scope_type` (`varchar(20)` — `'neighborhood'`, `'category'`, `'item_kind'`)
@@ -69,6 +69,6 @@ Abastece as telas `/community`, `/community/[id]`, `/feed` e `/pautas/[slug]`.
 
 ## ✅ Verificação
 
-- [ ] Pauta em `draft` retorna `404` para usuário anônimo ou explorador e `200` para Admin.
-- [ ] Silenciar um bairro em `POST /api/feed/mutes` faz `GET /api/feed` omitir cards daquele bairro imediatamente.
-- [ ] `GET /api/community/explorers` reflete contadores reais calculados sobre visitas, avaliações e locais aprovados.
+- [x] Pauta em `draft` retorna `404` para usuário anônimo ou explorador e `200` para Admin.
+- [x] Silenciar um bairro em `POST /api/feed/mutes` faz `GET /api/feed` omitir cards daquele bairro imediatamente.
+- [x] `GET /api/community/explorers` reflete contadores reais calculados sobre visitas, avaliações e locais aprovados.

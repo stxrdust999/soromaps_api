@@ -1,6 +1,6 @@
 # 🧭 06. Atividade do Explorador (Visitas, Favoritos, Estatísticas e Selo)
 
-> **Status:** 💤 Pendente · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md) · [Índice](./README.md)
+> **Status:** ✅ Concluído · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md) · [Índice](./README.md)
 
 Sustenta as abas de `/profile` (`/profile/visits`, `/profile/favorites`, `/profile/stats`), os botões de check-in e favoritar em `/places/[id]` e a régua pública do selo de **Explorador Verificado**.
 
@@ -9,7 +9,7 @@ Sustenta as abas de `/profile` (`/profile/visits`, `/profile/favorites`, `/profi
 ## 🗄️ Banco de Dados
 
 ### 1. Visitas / Check-ins (`tb_visits`)
-- [ ] Criar tabela `tb_visits` (`Visit`):
+- [x] Criar tabela `tb_visits` (`Visit`):
   - `id` (`uuid` PK, `gen_random_uuid()`)
   - `user_id` (`uuid` FK → `tb_users` `ON DELETE CASCADE`, indexado)
   - `place_id` (`uuid` FK → `tb_places` `ON DELETE CASCADE`, indexado)
@@ -18,7 +18,7 @@ Sustenta as abas de `/profile` (`/profile/visits`, `/profile/favorites`, `/profi
   - Constraint `UNIQUE (user_id, place_id, visited_on)`: permite no máximo 1 check-in por local por dia para o mesmo usuário.
 
 ### 2. Favoritos (`tb_favorites`)
-- [ ] Criar tabela `tb_favorites` (`Favorite`):
+- [x] Criar tabela `tb_favorites` (`Favorite`):
   - PK composta `(user_id, place_id)` (FKs para `tb_users` e `tb_places` com `ON DELETE CASCADE`).
   - `created_at` (`timestamptz`, default `now()`).
 
@@ -32,7 +32,7 @@ Sustenta as abas de `/profile` (`/profile/visits`, `/profile/favorites`, `/profi
 | `POST` | `/api/places/{placeId:guid}/visits` | Autenticado | Registra check-in no local validando a distância GPS (fórmula de Haversine ≤ 200 metros entre `latitude`/`longitude` enviadas no body e as coordenadas do local). |
 | `GET` | `/api/users/me/visits` | Autenticado | Lista o histórico de visitas do usuário logado com dados do local e indicação se já avaliou o ponto. |
 
-- [ ] **Erros de Check-in:**
+- [x] **Erros de Check-in:**
   - Distância > 200m → `422 UnprocessableEntity` (`code: "visit.too_far"`).
   - Check-in já realizado hoje no mesmo local → `409 Conflict` (`code: "visit.already_checked_in_today"`).
 
@@ -53,6 +53,6 @@ Sustenta as abas de `/profile` (`/profile/visits`, `/profile/favorites`, `/profi
 
 ## ✅ Verificação
 
-- [ ] Check-in a 50 metros do local retorna `201 Created`; a 500 metros retorna `422` com `code: "visit.too_far"`.
-- [ ] Segundo check-in no mesmo local e mesmo dia retorna `409` com `code: "visit.already_checked_in_today"`.
-- [ ] `GET /api/users/me/verification` retorna `isVerified = true` somente quando `visitsCount >= 5`, `publishedReviewsCount >= 3`, `removedReviewsCount == 0` e `accountAgeDays >= 30`.
+- [x] Check-in a 50 metros do local retorna `201 Created`; a 500 metros retorna `422` com `code: "visit.too_far"`.
+- [x] Segundo check-in no mesmo local e mesmo dia retorna `409` com `code: "visit.already_checked_in_today"`.
+- [x] `GET /api/users/me/verification` retorna `isVerified = true` somente quando `visitsCount >= 5`, `publishedReviewsCount >= 3`, `removedReviewsCount == 0` e `accountAgeDays >= 30`.

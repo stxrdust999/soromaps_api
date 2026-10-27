@@ -1,6 +1,6 @@
 # 🚩 08. Denúncias e Feedback
 
-> **Status:** 💤 Pendente · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md) · [Índice](./README.md)
+> **Status:** ✅ Concluído · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md) · [Índice](./README.md)
 
 Atende a fila de triagem em `/admin/reports` (denúncias agrupadas por conteúdo alvo) e a tela `/feedback` (envio de bugs, sugestões e elogios à plataforma).
 
@@ -9,7 +9,7 @@ Atende a fila de triagem em `/admin/reports` (denúncias agrupadas por conteúdo
 ## 🗄️ Banco de Dados
 
 ### 1. Denúncias (`tb_reports`)
-- [ ] Criar tabela `tb_reports` (`Report`):
+- [x] Criar tabela `tb_reports` (`Report`):
   - `id` (`uuid` PK, `gen_random_uuid()`)
   - `reporter_id` (`uuid` FK → `tb_users` `ON DELETE CASCADE`, indexado)
   - `target_type` (`varchar(20)` — `'place'`, `'review'`, `'comment'`)
@@ -24,7 +24,7 @@ Atende a fila de triagem em `/admin/reports` (denúncias agrupadas por conteúdo
   - Constraint `UNIQUE (reporter_id, target_type, target_id)` para impedir que o mesmo usuário denuncie o mesmo alvo múltiplas vezes.
 
 ### 2. Feedback da Plataforma (`tb_feedback`)
-- [ ] Criar tabela `tb_feedback` (`Feedback`):
+- [x] Criar tabela `tb_feedback` (`Feedback`):
   - `id` (`uuid` PK, `gen_random_uuid()`)
   - `user_id` (`uuid` FK → `tb_users` `ON DELETE CASCADE`)
   - `category` (`varchar(30)` — `'bug'`, `'suggestion'`, `'content'`, `'compliment'`)
@@ -55,6 +55,6 @@ Atende a fila de triagem em `/admin/reports` (denúncias agrupadas por conteúdo
 
 ## ✅ Verificação
 
-- [ ] Três usuários denunciando a mesma avaliação geram 1 único item agrupado em `GET /api/admin/reports` com `reportersCount = 3`.
-- [ ] Mesmo usuário tentando denunciar o mesmo item duas vezes recebe `409 Conflict` (`code: "report.already_reported"`).
-- [ ] Arquivar (`dismiss`) ou remover o conteúdo encerra todas as denúncias abertas daquele `(target_type, target_id)`.
+- [x] Três usuários denunciando a mesma avaliação geram 1 único item agrupado em `GET /api/admin/reports` com `reportersCount = 3`.
+- [x] Mesmo usuário tentando denunciar o mesmo item duas vezes recebe `409 Conflict` (`code: "report.already_reported"`).
+- [x] Arquivar (`dismiss`) ou remover o conteúdo encerra todas as denúncias abertas daquele `(target_type, target_id)`.

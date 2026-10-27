@@ -1,6 +1,6 @@
 # 🚦 04. Moderação de Locais
 
-> **Status:** 💤 Pendente · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md) · [Índice](./README.md)
+> **Status:** ✅ Concluído · **Depende de:** [03-CatalogoELocais.md](./03-CatalogoELocais.md) · [Índice](./README.md)
 
 Atualmente a API possui `PATCH /api/places/{id}/status` que altera a coluna `status` em `tb_places`, mas `GET /api/places` lista apenas locais `Approved` e não há registro de histórico de decisões, motivo de rejeição/devolução, decisão em lote nem detecção de duplicatas para abastecer `/admin/moderation`.
 
@@ -8,7 +8,7 @@ Atualmente a API possui `PATCH /api/places/{id}/status` que altera a coluna `sta
 
 ## 🗄️ Banco de Dados (`tb_moderation_decisions`)
 
-- [ ] Criar tabela `tb_moderation_decisions` (`ModerationDecision`) — log append-only (somente inserção):
+- [x] Criar tabela `tb_moderation_decisions` (`ModerationDecision`) — log append-only (somente inserção):
   - `id` (`uuid` PK, `gen_random_uuid()`)
   - `place_id` (`uuid` FK → `tb_places` `ON DELETE CASCADE`, indexado)
   - `moderator_id` (`uuid` FK → `tb_users` `ON DELETE RESTRICT`, indexado)
@@ -32,16 +32,16 @@ Atualmente a API possui `PATCH /api/places/{id}/status` que altera a coluna `sta
 | `GET` | `/api/admin/moderation/history` | `AdminOnly` | Lista o histórico paginado de decisões com moderador, local, decisão, motivo e data. |
 
 ### Regras de Negócio
-- [ ] **Controle de concorrência otimista (`409 Conflict`, `code: "moderation.status_conflict"`):** se o `ExpectedCurrentStatus` enviado pelo moderador não bater com o `status` atual do local (outro admin já moderou o item), abortar com `409`.
-- [ ] **Motivo obrigatório (`400 BadRequest`, `code: "moderation.reason_required"`):** decisões `returned` e `rejected` exigem `reason` preenchido dentro da lista fechada de motivos.
-- [ ] **Janela de reversão (`409 Conflict`, `code: "moderation.undo_expired"`):** recusar `undo` se a última decisão tiver mais de 24 horas.
-- [ ] **Reenvio pelo autor:** quando um autor edita (`PATCH /api/places/{id}`) um local que estava com `status == Returned`, o status volta automaticamente para `Pending` para reentrar na fila.
+- [x] **Controle de concorrência otimista (`409 Conflict`, `code: "moderation.status_conflict"`):** se o `ExpectedCurrentStatus` enviado pelo moderador não bater com o `status` atual do local (outro admin já moderou o item), abortar com `409`.
+- [x] **Motivo obrigatório (`400 BadRequest`, `code: "moderation.reason_required"`):** decisões `returned` e `rejected` exigem `reason` preenchido dentro da lista fechada de motivos.
+- [x] **Janela de reversão (`409 Conflict`, `code: "moderation.undo_expired"`):** recusar `undo` se a última decisão tiver mais de 24 horas.
+- [x] **Reenvio pelo autor:** quando um autor edita (`PATCH /api/places/{id}`) um local que estava com `status == Returned`, o status volta automaticamente para `Pending` para reentrar na fila.
 
 ---
 
 ## ✅ Verificação
 
-- [ ] Aprovar local cria registro em `tb_moderation_decisions` e torna o local visível em `GET /api/places`.
-- [ ] Rejeitar ou devolver sem `reason` retorna `400 BadRequest`.
-- [ ] Dois moderadores decidindo o mesmo local simultaneamente: o segundo recebe `409 Conflict`.
-- [ ] Desfazer decisão dentro de 24h cria nova linha no histórico e devolve o local para a fila `pending`.
+- [x] Aprovar local cria registro em `tb_moderation_decisions` e torna o local visível em `GET /api/places`.
+- [x] Rejeitar ou devolver sem `reason` retorna `400 BadRequest`.
+- [x] Dois moderadores decidindo o mesmo local simultaneamente: o segundo recebe `409 Conflict`.
+- [x] Desfazer decisão dentro de 24h cria nova linha no histórico e devolve o local para a fila `pending`.

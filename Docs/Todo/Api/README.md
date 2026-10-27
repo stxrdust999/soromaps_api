@@ -23,6 +23,7 @@ Este diretório organiza **tudo o que o front-end (`soromaps_web`) exige e que a
 | 08 | **Denúncias e Feedback** | [08-DenunciasEFeedback.md](./08-DenunciasEFeedback.md) | ✅ | Tabela polimórfica `tb_reports` agrupada por alvo para `/admin/reports` e tabela `tb_feedback` para envio de sugestões/bugs. |
 | 09 | **Comunidade, Feed e Pautas** | [09-ComunidadeFeedEPautas.md](./09-ComunidadeFeedEPautas.md) | ✅ | Ranking público de exploradores (`/api/community/explorers`), consulta do feed sem grafo social (`/api/feed` + `tb_feed_mutes`) e pautas editoriais/IA (`tb_stories` + `tb_story_places`). |
 | 10 | **Dashboard Administrativo** | [10-DashboardAdmin.md](./10-DashboardAdmin.md) | ✅ | Endpoint agregado `GET /api/admin/stats` (filas de atenção, KPIs de 7/30/90 dias, séries diárias e distribuição por categoria). |
+| 11 | **Crawler e Ingestão OpenStreetMap** | [11-CrawlerEIngestaoOsm.md](./11-CrawlerEIngestaoOsm.md) | ✅ | Serviço `OsmPlaceScraperService`, mineração via Overpass/Nominatim com deduplicação espacial/nominal, categorização automática e comandos CLI (`--import-places`, `--import-osm`). |
 
 ---
 

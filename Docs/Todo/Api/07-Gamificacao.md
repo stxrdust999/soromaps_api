@@ -1,6 +1,6 @@
 # 🏆 07. Motor de Gamificação e Conquistas
 
-> **Status:** 💤 Pendente · **Depende de:** [04-ModeracaoDeLocais.md](./04-ModeracaoDeLocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md), [06-AtividadeDoExplorador.md](./06-AtividadeDoExplorador.md) · [Índice](./README.md)
+> **Status:** ✅ Concluído · **Depende de:** [04-ModeracaoDeLocais.md](./04-ModeracaoDeLocais.md), [05-AvaliacoesEComentarios.md](./05-AvaliacoesEComentarios.md), [06-AtividadeDoExplorador.md](./06-AtividadeDoExplorador.md) · [Índice](./README.md)
 
 `tb_achievements` e `AchievementsController` já existem com `id`, `name` e `description`. Falta estruturar os critérios de desbloqueio no banco, criar a tabela de conquistas desbloqueadas por usuário (`tb_user_achievements`) e implementar o motor idempotente de avaliação de progresso.
 
@@ -9,7 +9,7 @@
 ## 🗄️ Banco de Dados
 
 ### 1. Enriquecer `tb_achievements` (`Achievement`)
-- [ ] Adicionar colunas em `tb_achievements`:
+- [x] Adicionar colunas em `tb_achievements`:
   - `icon` (`varchar(40)` — chave do ícone em `ACHIEVEMENT_ICONS`)
   - `color` (`varchar(20)` — token de cor do badge)
   - `event_type` (`varchar(30)` — `'visit'`, `'review'`, `'favorite'`, `'create_place'`, `'comment'`)
@@ -20,7 +20,7 @@
   - `updated_at` (`timestamptz`)
 
 ### 2. Conquistas do Usuário (`tb_user_achievements`)
-- [ ] Criar tabela `tb_user_achievements` (`UserAchievement`):
+- [x] Criar tabela `tb_user_achievements` (`UserAchievement`):
   - PK composta `(user_id, achievement_id)` (FKs para `tb_users` e `tb_achievements` com `ON DELETE CASCADE`).
   - `unlocked_at` (`timestamptz`, default `now()`).
 
@@ -28,7 +28,7 @@
 
 ## ⚙️ Motor de Concessão (`AchievementEvaluatorService`)
 
-- [ ] Implementar método `EvaluateForUserAsync(Guid userId, AchievementEventType eventType)`:
+- [x] Implementar método `EvaluateForUserAsync(Guid userId, AchievementEventType eventType)`:
   - Busca todas as conquistas ativas daquele `event_type` que o usuário **ainda não possui** em `tb_user_achievements`.
   - Calcula o contador atual do usuário no banco conforme `(event_type, target_type, target_value)`:
     - `visit` → conta em `tb_visits` (join com `tb_places` quando filtrar por categoria/bairro).
@@ -37,7 +37,7 @@
     - `create_place` → conta em `tb_places` (`WHERE status = 'approved'`).
     - `comment` → conta em `tb_comments` (`WHERE removed_at IS NULL`).
   - Se `currentProgress >= required_quantity`, insere em `tb_user_achievements` (idempotente pela PK composta).
-- [ ] Disparar `EvaluateForUserAsync` após:
+- [x] Disparar `EvaluateForUserAsync` após:
   - Check-in bem-sucedido (`VisitService`);
   - Criação de avaliação (`ReviewService`);
   - Adição de favorito (`FavoriteService`);
@@ -59,6 +59,6 @@
 
 ## ✅ Verificação
 
-- [ ] Completar a 1ª visita concede automaticamente a conquista de primeira visita e grava em `tb_user_achievements`.
-- [ ] Rodar o avaliador múltiplas vezes para o mesmo usuário nunca duplica conquistas.
-- [ ] `GET /api/users/me/achievements` retorna o progresso parcial exato (ex.: `3/5` cafeterias visitadas) para conquistas ainda bloqueadas.
+- [x] Completar a 1ª visita concede automaticamente a conquista de primeira visita e grava em `tb_user_achievements`.
+- [x] Rodar o avaliador múltiplas vezes para o mesmo usuário nunca duplica conquistas.
+- [x] `GET /api/users/me/achievements` retorna o progresso parcial exato (ex.: `3/5` cafeterias visitadas) para conquistas ainda bloqueadas.
