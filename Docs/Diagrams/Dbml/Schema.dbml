@@ -3,8 +3,12 @@
 
 Project soromaps {
   database_type: 'PostgreSQL'
-  Note: 'Modelo de dados completo da plataforma Soromaps — Schema refatorado.'
+  Note: 'Modelo de dados completo da plataforma Soromaps API — 21 tabelas mapeadas com tipos reais e integridade referencial.'
 }
+
+// ----------------------------------------------------------------------------
+// GRUPO 1: IDENTIDADE, USUÁRIOS E SESSÕES
+// ----------------------------------------------------------------------------
 
 Table tb_users {
   id uuid [pk, default: `gen_random_uuid()`]
@@ -17,73 +21,481 @@ Table tb_users {
   neighborhood varchar(60) [null]
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'Usuários cadastrados no sistema (Exploradores e Administradores).'
 }
 
 Table tb_sessions {
   id bigint [pk, increment]
-  user_id uuid [not null, ref: > tb_users.id]
+  user_id uuid [not null]
   token_hash char(64) [not null, unique]
   expires_at timestamptz [not null]
   revoked_at timestamptz [null]
   user_agent varchar(300) [null]
   created_at timestamptz [not null, default: `now()`]
+
+  Note: 'Sessões ativas e tokens de refresh dos usuários com expiração e revogação.'
 }
+
+// ----------------------------------------------------------------------------
+// GRUPO 2: CATÁLOGO, LUGARES, FOTOS E TAGS
+// ----------------------------------------------------------------------------
 
 Table tb_categories {
   id uuid [pk, default: `gen_random_uuid()`]
   name varchar(60) [not null, unique]
+  slug varchar(60) [not null, unique]
+  icon varchar(40) [not null, default: 'map-pin']
+  color varchar(7) [not null, default: '#2563EB']
+  sort_order smallint [not null, default: 0]
+  is_active boolean [not null, default: true]
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (is_active, sort_order)
+  }
+
+  Note: 'Categorias taxonômicas para classificação de lugares.'
 }
 
 Table tb_places {
   id uuid [pk, default: `gen_random_uuid()`]
-  category_id uuid [not null, ref: > tb_categories.id]
-  author_id uuid [null, ref: > tb_users.id]
+  category_id uuid [not null]
+  author_id uuid [null]
   name varchar(120) [not null]
-  latitude double [not null]
-  longitude double [not null]
+  latitude "double precision" [not null]
+  longitude "double precision" [not null]
   neighborhood varchar(60) [not null]
   about varchar(280) [not null]
   description varchar(2000) [not null]
   has_wifi boolean [not null, default: false]
   is_pet_friendly boolean [not null, default: false]
+  best_time varchar(100) [null]
+  local_secret varchar(300) [null]
   status varchar(20) [not null, default: 'Pending']
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
   indexes {
     (status, created_at)
+    category_id
+    author_id
+    neighborhood
+    (latitude, longitude)
   }
+
+  Note: 'Pontos de interesse (lugares culturais, gastronômicos e turísticos).'
 }
+
+Table tb_place_photos {
+  id uuid [pk, default: `gen_random_uuid()`]
+  place_id uuid [not null]
+  uploaded_by_id uuid [null]
+  url varchar(600) [not null]
+  storage_path varchar(300) [null]
+  is_cover boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    place_id
+  }
+
+  Note: 'Galeria de fotos vinculadas aos lugares, incluindo foto de capa.'
+}
+
+Table tb_tags {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name varchar(50) [not null, unique]
+  slug varchar(60) [not null, unique]
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'Tags descritivas para refinamento de busca e filtragem temática.'
+}
+
+Table tb_place_tags {
+  place_id uuid [not null]
+  tag_id uuid [not null]
+
+  indexes {
+    (place_id, tag_id) [pk]
+    tag_id
+  }
+
+  Note: 'Tabela associativa N:N entre lugares e tags.'
+}
+
+// ----------------------------------------------------------------------------
+// GRUPO 3: AVALIAÇÕES, COMENTÁRIOS E VOTOS DE UTILIDADE
+// ----------------------------------------------------------------------------
 
 Table tb_reviews {
   id uuid [pk, default: `gen_random_uuid()`]
-  place_id uuid [not null, ref: > tb_places.id]
-  user_id uuid [null, ref: > tb_users.id]
+  place_id uuid [not null]
+  user_id uuid [null]
   content varchar(2000) [not null]
-  rating smallint [not null]
+  rating integer [not null]
+  removed_at timestamptz [null]
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
   indexes {
     (place_id, user_id) [unique]
+    (place_id, created_at)
   }
+
+  Note: 'Avaliações de 1 a 5 estrelas feitas por usuários sobre os lugares.'
 }
 
 Table tb_comments {
   id uuid [pk, default: `gen_random_uuid()`]
-  review_id uuid [not null, ref: > tb_reviews.id]
-  user_id uuid [null, ref: > tb_users.id]
+  review_id uuid [not null]
+  user_id uuid [null]
+  reply_to_id uuid [null]
   content varchar(1000) [not null]
+  removed_at timestamptz [null]
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    review_id
+    user_id
+    reply_to_id
+  }
+
+  Note: 'Comentários e respostas em árvore vinculados a uma avaliação.'
 }
+
+Table tb_review_useful_votes {
+  review_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (review_id, user_id) [pk]
+    user_id
+  }
+
+  Note: 'Votos de utilidade comunitária (marcação de review útil).'
+}
+
+// ----------------------------------------------------------------------------
+// GRUPO 4: ATIVIDADE DO EXPLORADOR (VISITAS E FAVORITOS)
+// ----------------------------------------------------------------------------
+
+Table tb_visits {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  place_id uuid [not null]
+  visited_on date [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, place_id, visited_on) [unique]
+    (user_id, visited_on)
+    place_id
+  }
+
+  Note: 'Registros de visitas/check-ins dos exploradores nos lugares.'
+}
+
+Table tb_favorites {
+  user_id uuid [not null]
+  place_id uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, place_id) [pk]
+    place_id
+  }
+
+  Note: 'Lugares marcados como favoritos pelos usuários.'
+}
+
+// ----------------------------------------------------------------------------
+// GRUPO 5: GAMIFICAÇÃO E CONQUISTAS
+// ----------------------------------------------------------------------------
 
 Table tb_achievements {
   id uuid [pk, default: `gen_random_uuid()`]
   name varchar(80) [not null, unique]
   description varchar(280) [not null]
+  icon varchar(40) [not null, default: 'award']
+  color varchar(20) [not null, default: '#F59E0B']
+  event_type varchar(30) [not null, default: 'Visit']
+  required_quantity integer [not null, default: 1]
+  target_type varchar(30) [not null, default: 'Any']
+  target_value varchar(60) [null]
+  is_active boolean [not null, default: true]
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (is_active, event_type)
+  }
+
+  Note: 'Definições de badges e conquistas do sistema.'
+}
+
+Table tb_user_achievements {
+  user_id uuid [not null]
+  achievement_id uuid [not null]
+  unlocked_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, achievement_id) [pk]
+    achievement_id
+  }
+
+  Note: 'Conquistas desbloqueadas por cada usuário.'
+}
+
+// ----------------------------------------------------------------------------
+// GRUPO 6: GOVERNANÇA, MODERAÇÃO E SEGURANÇA
+// ----------------------------------------------------------------------------
+
+Table tb_moderation_decisions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  place_id uuid [not null]
+  moderator_id uuid [null]
+  previous_status varchar(20) [not null]
+  decision varchar(20) [not null]
+  reason varchar(50) [null]
+  feedback_note varchar(500) [null]
+  is_undo boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (place_id, created_at)
+    created_at
+  }
+
+  Note: 'Trilha de auditoria das decisões de moderação aplicadas aos lugares.'
+}
+
+Table tb_content_removals {
+  id uuid [pk, default: `gen_random_uuid()`]
+  target_type varchar(20) [not null]
+  target_id uuid [not null]
+  author_id uuid [null]
+  moderator_id uuid [null]
+  reason varchar(50) [not null]
+  note varchar(500) [null]
+  snapshot_text varchar(3000) [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (target_type, target_id)
+    author_id
+    moderator_id
+    created_at
+  }
+
+  Note: 'Auditoria de moderação de conteúdo impróprio (reviews e comentários).'
+}
+
+Table tb_reports {
+  id uuid [pk, default: `gen_random_uuid()`]
+  reporter_id uuid [not null]
+  target_type varchar(20) [not null]
+  target_id uuid [not null]
+  reason varchar(40) [not null]
+  details varchar(500) [null]
+  status varchar(20) [not null]
+  resolved_by_id uuid [null]
+  resolution_note varchar(300) [null]
+  resolved_at timestamptz [null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (reporter_id, target_type, target_id) [unique]
+    (target_type, target_id)
+    status
+    created_at
+  }
+
+  Note: 'Denúncias enviadas por usuários sobre lugares ou conteúdos da comunidade.'
+}
+
+Table tb_feedback {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  category varchar(30) [not null]
+  origin_path varchar(120) [null]
+  message varchar(1000) [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    created_at
+  }
+
+  Note: 'Feedbacks e sugestões gerais enviados pelos exploradores sobre o app.'
+}
+
+// ----------------------------------------------------------------------------
+// GRUPO 7: EDITORIAL, PAUTAS (STORIES) E FEED
+// ----------------------------------------------------------------------------
+
+Table tb_stories {
+  id uuid [pk, default: `gen_random_uuid()`]
+  slug varchar(120) [not null, unique]
+  title varchar(140) [not null]
+  subtitle varchar(280) [not null]
+  neighborhood varchar(60) [null]
+  intro_text text [not null]
+  closing_text text [null]
+  origin varchar(20) [not null]
+  status varchar(20) [not null]
+  author_id uuid [not null]
+  published_at timestamptz [null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    status
+    published_at
+  }
+
+  Note: 'Pautas editoriais, roteiros e histórias temáticas curadas.'
+}
+
+Table tb_story_places {
+  story_id uuid [not null]
+  place_id uuid [not null]
+  sort_order smallint [not null]
+  angle_title varchar(120) [not null]
+  body_text text [not null]
+  local_tip varchar(280) [null]
+
+  indexes {
+    (story_id, place_id) [pk]
+    place_id
+  }
+
+  Note: 'Lugares associados a uma pauta com descrições e dicas específicas.'
+}
+
+Table tb_feed_mutes {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  scope_type varchar(20) [not null]
+  scope_value varchar(60) [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, scope_type, scope_value) [unique]
+    user_id
+  }
+
+  Note: 'Silenciamento de tópicos, categorias ou bairros no feed por preferência do usuário.'
+}
+
+// ----------------------------------------------------------------------------
+// RELACIONAMENTOS E INTEGRIDADE REFERENCIAL (CONFORME EF CORE CONFIGURATIONS)
+// ----------------------------------------------------------------------------
+
+// Sessões
+Ref: tb_sessions.user_id > tb_users.id [delete: cascade]
+
+// Lugares
+Ref: tb_places.category_id > tb_categories.id [delete: restrict]
+Ref: tb_places.author_id > tb_users.id [delete: set null]
+
+// Fotos de Lugares
+Ref: tb_place_photos.place_id > tb_places.id [delete: cascade]
+Ref: tb_place_photos.uploaded_by_id > tb_users.id [delete: set null]
+
+// Tags de Lugares
+Ref: tb_place_tags.place_id > tb_places.id [delete: cascade]
+Ref: tb_place_tags.tag_id > tb_tags.id [delete: cascade]
+
+// Moderação de Lugares
+Ref: tb_moderation_decisions.place_id > tb_places.id [delete: cascade]
+Ref: tb_moderation_decisions.moderator_id > tb_users.id [delete: set null]
+
+// Avaliações
+Ref: tb_reviews.place_id > tb_places.id [delete: cascade]
+Ref: tb_reviews.user_id > tb_users.id [delete: set null]
+
+// Comentários
+Ref: tb_comments.review_id > tb_reviews.id [delete: cascade]
+Ref: tb_comments.user_id > tb_users.id [delete: set null]
+Ref: tb_comments.reply_to_id > tb_comments.id [delete: cascade]
+
+// Votos Úteis
+Ref: tb_review_useful_votes.review_id > tb_reviews.id [delete: cascade]
+Ref: tb_review_useful_votes.user_id > tb_users.id [delete: cascade]
+
+// Remoções de Conteúdo (Auditoria)
+Ref: tb_content_removals.author_id > tb_users.id [delete: set null]
+Ref: tb_content_removals.moderator_id > tb_users.id [delete: set null]
+
+// Visitas / Check-ins
+Ref: tb_visits.user_id > tb_users.id [delete: cascade]
+Ref: tb_visits.place_id > tb_places.id [delete: cascade]
+
+// Favoritos
+Ref: tb_favorites.user_id > tb_users.id [delete: cascade]
+Ref: tb_favorites.place_id > tb_places.id [delete: cascade]
+
+// Conquistas
+Ref: tb_user_achievements.user_id > tb_users.id [delete: cascade]
+Ref: tb_user_achievements.achievement_id > tb_achievements.id [delete: cascade]
+
+// Denúncias
+Ref: tb_reports.reporter_id > tb_users.id [delete: cascade]
+Ref: tb_reports.resolved_by_id > tb_users.id [delete: set null]
+
+// Feedbacks
+Ref: tb_feedback.user_id > tb_users.id [delete: cascade]
+
+// Pautas (Stories)
+Ref: tb_stories.author_id > tb_users.id [delete: restrict]
+Ref: tb_story_places.story_id > tb_stories.id [delete: cascade]
+Ref: tb_story_places.place_id > tb_places.id [delete: cascade]
+
+// Feed Mutes
+Ref: tb_feed_mutes.user_id > tb_users.id [delete: cascade]
+
+// ----------------------------------------------------------------------------
+// AGRUPAMENTOS VISUAIS (TABLE GROUPS)
+// ----------------------------------------------------------------------------
+
+TableGroup identity_access {
+  tb_users
+  tb_sessions
+}
+
+TableGroup catalog_places {
+  tb_categories
+  tb_places
+  tb_place_photos
+  tb_tags
+  tb_place_tags
+}
+
+TableGroup reviews_social {
+  tb_reviews
+  tb_comments
+  tb_review_useful_votes
+}
+
+TableGroup explorer_gamification {
+  tb_visits
+  tb_favorites
+  tb_achievements
+  tb_user_achievements
+}
+
+TableGroup moderation_governance {
+  tb_moderation_decisions
+  tb_content_removals
+  tb_reports
+  tb_feedback
+}
+
+TableGroup editorial_feed {
+  tb_stories
+  tb_story_places
+  tb_feed_mutes
 }
