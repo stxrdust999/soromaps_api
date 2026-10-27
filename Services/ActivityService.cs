@@ -289,13 +289,23 @@ public sealed class ActivityService(
             visitsByMonth.Add(new MonthlyVisitsCountDto(key, count));
         }
 
-        var visitsByCategory = await context.Visits
+        /** Projeta contagens em tipo anônimo para ordenação em SQL e mapeia para o record posicional em memória. */
+        var rawVisitsByCategory = await context.Visits
             .AsNoTracking()
-            .Where(v => v.UserId == userId)
-            .GroupBy(v => new { v.Place.Category.Name, v.Place.Category.Color })
-            .Select(g => new CategoryVisitsDistributionDto(g.Key.Name, g.Key.Color, g.Count()))
-            .OrderByDescending(c => c.Count)
+            .Where(visit => visit.UserId == userId)
+            .GroupBy(visit => new { visit.Place.CategoryId, visit.Place.Category.Name, visit.Place.Category.Color })
+            .Select(group => new
+            {
+                group.Key.Name,
+                group.Key.Color,
+                Count = group.Count()
+            })
+            .OrderByDescending(category => category.Count)
             .ToListAsync(cancellationToken);
+
+        var visitsByCategory = rawVisitsByCategory
+            .Select(category => new CategoryVisitsDistributionDto(category.Name, category.Color, category.Count))
+            .ToList();
 
         var visitedNeighborhoods = await context.Visits
             .AsNoTracking()
