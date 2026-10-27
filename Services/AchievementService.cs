@@ -134,6 +134,9 @@ public sealed class AchievementService(
         return Result.Success();
     }
 
+    /**
+     * Lista o progresso de todas as conquistas ativas para o explorador autenticado, fornecendo a regra objetiva de desbloqueio.
+     */
     public async Task<Result<IReadOnlyList<UserAchievementProgressDto>>> ListMyAchievementsAsync(CancellationToken cancellationToken = default)
     {
         var userId = currentUserService.UserId;
@@ -158,10 +161,14 @@ public sealed class AchievementService(
                 ? achievement.RequiredQuantity
                 : await evaluatorService.CalculateProgressAsync(userId, achievement, cancellationToken);
 
+            var descriptionText = isUnlocked
+                ? achievement.Description
+                : BuildCriteriaText(achievement);
+
             result.Add(new UserAchievementProgressDto(
                 achievement.Id,
                 achievement.Name,
-                achievement.Description,
+                descriptionText,
                 achievement.Icon,
                 achievement.Color,
                 currentProgress,
@@ -172,6 +179,36 @@ public sealed class AchievementService(
         }
 
         return result;
+    }
+
+    /**
+     * Constrói o texto objetivo do critério de desbloqueio de uma conquista com base no evento, meta e alvo configurados.
+     */
+    private static string BuildCriteriaText(Achievement achievement)
+    {
+        return achievement.EventType switch
+        {
+            AchievementEventType.Visit => achievement.TargetType switch
+            {
+                AchievementTargetType.Category => $"Registrar {achievement.RequiredQuantity} visita(s) em locais desta categoria",
+                AchievementTargetType.Neighborhood => $"Registrar {achievement.RequiredQuantity} visita(s) no bairro {achievement.TargetValue}",
+                AchievementTargetType.DistinctCategories => $"Visitar locais de {achievement.RequiredQuantity} categoria(s) diferente(s)",
+                AchievementTargetType.DistinctNeighborhoods => $"Visitar locais em {achievement.RequiredQuantity} bairro(s) diferente(s)",
+                _ => $"Registrar {achievement.RequiredQuantity} visita(s) em locais de Sorocaba"
+            },
+            AchievementEventType.Review => achievement.TargetType switch
+            {
+                AchievementTargetType.Category => $"Publicar {achievement.RequiredQuantity} avaliação(ões) em locais desta categoria",
+                AchievementTargetType.Neighborhood => $"Publicar {achievement.RequiredQuantity} avaliação(ões) no bairro {achievement.TargetValue}",
+                AchievementTargetType.DistinctCategories => $"Avaliar locais de {achievement.RequiredQuantity} categoria(s) diferente(s)",
+                AchievementTargetType.DistinctNeighborhoods => $"Avaliar locais em {achievement.RequiredQuantity} bairro(s) diferente(s)",
+                _ => $"Publicar {achievement.RequiredQuantity} avaliação(ões) em locais da cidade"
+            },
+            AchievementEventType.CreatePlace => $"Cadastrar {achievement.RequiredQuantity} ponto(s) aprovado(s) no mapa",
+            AchievementEventType.Favorite => $"Salvar {achievement.RequiredQuantity} local(is) nos seus favoritos",
+            AchievementEventType.Comment => $"Publicar {achievement.RequiredQuantity} comentário(s) útil(eis) na comunidade",
+            _ => achievement.Description
+        };
     }
 
     public async Task<Result<AchievementEstimateResponseDto>> EstimateAsync(AchievementEstimateQueryDto query, CancellationToken cancellationToken = default)
