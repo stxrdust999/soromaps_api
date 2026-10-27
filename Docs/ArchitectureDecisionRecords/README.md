@@ -17,6 +17,10 @@ Este diretório contém o registro vivo e imutável de todas as decisões arquit
 | [0001](0001-FundacaoEModuloUsuarios.md) | Fundação da API e Módulo de Usuários | Accepted | 2026-09-27 | 00 Fundação & 02 Usuários |
 | [0002](0002-ModuloAutenticacaoESessoes.md) | Módulo de Autenticação e Sessões (JWT + Refresh Token) | Accepted | 2026-10-04 | 01 Autenticação |
 | [0003](0003-ArquiteturaEmCamadas.md) | Arquitetura em Camadas por Tipo e Padronização de Responsabilidades | Accepted | 2026-10-10 | Refatoração Geral |
+| [0004](0004-PipelineDeModeracaoEDuplicatas.md) | Pipeline de Moderação e Detecção de Duplicatas | Accepted | 2026-10-18 | 04 Moderação & Qualidade de Dados |
+| [0005](0005-MotorDeGamificacaoEConquistas.md) | Motor de Gamificação e Conquistas do Explorador | Accepted | 2026-10-19 | 05 Gamificação & Engajamento |
+| [0006](0006-PautasEditoriaisEFeedSemGrafo.md) | Pautas Editoriais e Feed Urbano Sem Grafo Social | Accepted | 2026-10-20 | 06 Feed de Atividades & Pautas Editoriais (Stories) |
+| [0007](0007-IngestaoOsmEAutomacaoCli.md) | Ingestão de Dados OSM e Automação via CLI | Accepted | 2026-10-25 | 07 Ingestão de Dados & Automação CLI |
 
 ---
 
